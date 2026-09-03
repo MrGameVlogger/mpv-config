@@ -62,6 +62,7 @@ local properties = {}
 local pre_0_30_0 = mp.command_native_async == nil
 local pre_0_33_0 = true
 local support_media_control = mp.get_property_native("media-controls") ~= nil
+local jellyfin_trickplay_active = false
 
 function subprocess(args, async, callback)
     callback = callback or function() end
