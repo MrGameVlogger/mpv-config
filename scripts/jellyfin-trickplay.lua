@@ -7,7 +7,7 @@ local mp = require 'mp'
 local utils = require 'mp.utils'
 local msg = require 'mp.msg'
 
-local CURL = "/usr/bin/curl"
+local CURL = "curl"
 local FFMPEG = "ffmpeg"
 
 local options = {
