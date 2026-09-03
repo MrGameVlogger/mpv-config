@@ -21,7 +21,9 @@ local state = {
     tile_width = 0,
     tile_height = 0,
     interval = 0,
-    tiles_per_image = 0,
+    tiles_x = 0,
+    tiles_y = 0,
+    thumbnail_count = 0,
     tile_file = nil,
     last_frame = -1,
     last_x = nil,
@@ -74,15 +76,44 @@ local function download_trickplay_tile(server, item_id, api_key, width, index)
     })
 
     if result and result.status == 0 then
-        return tmpfile
+        -- Verify the file exists and has content
+        local f = io.open(tmpfile, "rb")
+        if f then
+            local size = f:seek("end")
+            f:close()
+            if size and size > 0 then
+                return tmpfile
+            end
+        end
     end
     os.remove(tmpfile)
     return nil
 end
 
-local function get_trickplay_info(server, item_id, api_key)
-    -- Try to get Trickplay metadata from the item's media info
-    local url = string.format("%s/Users/Me/Items/%s", server, item_id)
+local function get_user_id(server, api_key)
+    local result = mp.command_native({
+        name = "subprocess",
+        capture_stdout = true,
+        capture_stderr = true,
+        playback_only = false,
+        args = {
+            "curl", "-sS",
+            "-H", "Authorization: MediaBrowser Token=\"" .. api_key .. "\"",
+            server .. "/Users"
+        }
+    })
+
+    if result and result.status == 0 and result.stdout then
+        local users = utils.parse_json(result.stdout)
+        if users and users[1] and users[1].Id then
+            return users[1].Id
+        end
+    end
+    return nil
+end
+
+local function get_trickplay_info(server, item_id, api_key, user_id)
+    local url = string.format("%s/Users/%s/Items/%s", server, user_id, item_id)
     local result = mp.command_native({
         name = "subprocess",
         capture_stdout = true,
@@ -98,17 +129,20 @@ local function get_trickplay_info(server, item_id, api_key)
     if result and result.status == 0 and result.stdout then
         local json = utils.parse_json(result.stdout)
         if json and json.Trickplay then
-            -- Trickplay info is a table keyed by width
-            for width_str, info in pairs(json.Trickplay) do
-                local width = tonumber(width_str)
-                if width and info then
-                    return {
-                        width = width,
-                        height = info.TileHeight or 180,
-                        interval = info.Interval or 10000,
-                        tiles_per_image = info.TilesX and info.TilesY and (info.TilesX * info.TilesY) or 100,
-                        tile_count = info.TileCount or 0,
-                    }
+            -- Trickplay structure: {itemId: {width: {Width, Height, TileWidth, TileHeight, ThumbnailCount, Interval}}}
+            for _, width_data in pairs(json.Trickplay) do
+                for width_str, info in pairs(width_data) do
+                    local width = tonumber(width_str)
+                    if width and info then
+                        return {
+                            width = info.Width or width,
+                            height = info.Height or 180,
+                            interval = info.Interval or 10000,
+                            tiles_x = info.TileWidth or 10,
+                            tiles_y = info.TileHeight or 10,
+                            thumbnail_count = info.ThumbnailCount or 0,
+                        }
+                    end
                 end
             end
         end
@@ -156,20 +190,25 @@ local function handle_thumb(offset_seconds, x, y)
 
     local frame = math.floor(offset_seconds / (state.interval / 1000))
     if frame < 0 then frame = 0 end
+    if frame >= state.thumbnail_count then frame = state.thumbnail_count - 1 end
 
-    -- Check if tile file exists for this frame
-    local tile_index = math.floor(frame / state.tiles_per_image)
-    local frame_in_tile = frame % state.tiles_per_image
+    -- Calculate position within the tile grid
+    local tile_index = math.floor(frame / (state.tiles_x * state.tiles_y))
+    local frame_in_tile = frame % (state.tiles_x * state.tiles_y)
+    local grid_x = frame_in_tile % state.tiles_x
+    local grid_y = math.floor(frame_in_tile / state.tiles_x)
 
-    -- For now, use the first tile image
-    -- TODO: Handle multiple tile images
+    -- Calculate byte offset in the BGRA file
+    -- Each tile image is (tile_width * tiles_x) x (tile_height * tiles_y)
+    local image_width = state.tile_width * state.tiles_x
+    local pixel_offset = (grid_y * state.tile_height * image_width + grid_x * state.tile_width) * 4
+
     if frame ~= state.last_frame or x ~= state.last_x or y ~= state.last_y then
-        local offset = frame_in_tile * state.tile_width * state.tile_height * 4
         state.last_frame = frame
         state.last_x = x
         state.last_y = y
         state.is_shown = true
-        mp.commandv("overlay-add", options.overlay_id, x, y, state.tile_file, offset, "bgra", state.tile_width, state.tile_height, state.tile_width * 4)
+        mp.commandv("overlay-add", options.overlay_id, x, y, state.tile_file, pixel_offset, "bgra", state.tile_width, state.tile_height, image_width * 4)
     end
 end
 
@@ -197,8 +236,17 @@ local function init_trickplay()
     state.item_id = item_id
     state.api_key = api_key
 
+    -- Get user ID
+    local user_id = get_user_id(server, api_key)
+    if not user_id then
+        msg.warn("Failed to get Jellyfin user ID")
+        state.active = false
+        send_thumbfast_info()
+        return
+    end
+
     -- Get Trickplay info
-    local info = get_trickplay_info(server, item_id, api_key)
+    local info = get_trickplay_info(server, item_id, api_key, user_id)
     if not info then
         msg.info("No Trickplay data available for this item")
         state.active = false
@@ -209,7 +257,9 @@ local function init_trickplay()
     state.tile_width = info.width
     state.tile_height = info.height
     state.interval = info.interval
-    state.tiles_per_image = info.tiles_per_image
+    state.tiles_x = info.tiles_x
+    state.tiles_y = info.tiles_y
+    state.thumbnail_count = info.thumbnail_count
 
     -- Download first tile image
     local jpg_path = download_trickplay_tile(server, item_id, api_key, info.width, 0)
@@ -221,7 +271,7 @@ local function init_trickplay()
     end
 
     -- Convert to BGRA
-    local bgra_path = convert_to_bgra(jpg_path, info.width, info.height)
+    local bgra_path = convert_to_bgra(jpg_path, info.width * info.tiles_x, info.height * info.tiles_y)
     if not bgra_path then
         msg.warn("Failed to convert Trickplay tile to BGRA")
         state.active = false
@@ -231,11 +281,26 @@ local function init_trickplay()
 
     state.tile_file = bgra_path
     state.active = true
-    msg.info("Trickplay loaded: " .. info.width .. "x" .. info.height .. ", interval=" .. info.interval .. "ms")
+    msg.info("Trickplay loaded: " .. info.width .. "x" .. info.height .. ", interval=" .. info.interval .. "ms, tiles=" .. info.tiles_x .. "x" .. info.tiles_y)
     send_thumbfast_info()
+
+    -- Tell thumbfast to delegate to us
+    mp.commandv("script-message-to", "thumbfast", "set-jellyfin-trickplay", "true")
 end
 
 -- Register message handlers (compatible with thumbfast API)
+-- ModernX sends messages to "thumbfast", so we need to handle them
+mp.register_script_message("thumbfast-thumb", function(_, offset_seconds, x, y)
+    if state.active then
+        handle_thumb(tonumber(offset_seconds), tonumber(x), tonumber(y))
+    end
+end)
+
+mp.register_script_message("thumbfast-clear", function()
+    handle_clear()
+end)
+
+-- Also register as "thumb" and "clear" for direct messages
 mp.register_script_message("thumb", function(_, offset_seconds, x, y)
     if state.active then
         handle_thumb(tonumber(offset_seconds), tonumber(x), tonumber(y))
@@ -249,6 +314,11 @@ end)
 -- Initialize when a file is loaded
 mp.register_event("file-loaded", function()
     cleanup_tiles()
+    state.active = false
+
+    -- Tell thumbfast to stop delegating to us
+    mp.commandv("script-message-to", "thumbfast", "set-jellyfin-trickplay", "false")
+
     if options.enabled then
         init_trickplay()
     end

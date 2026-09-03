@@ -715,6 +715,12 @@ end)
 file_timer:kill()
 
 local function clear()
+    -- Delegate to jellyfin-trickplay if it's active for this file
+    if jellyfin_trickplay_active then
+        mp.commandv("script-message-to", "jellyfin-trickplay", "clear")
+        return
+    end
+
     file_timer:kill()
     seek_timer:kill()
     if options.quit_after_inactivity > 0 then
@@ -751,6 +757,12 @@ activity_timer = mp.add_timeout(options.quit_after_inactivity, quit)
 activity_timer:kill()
 
 local function thumb(time, r_x, r_y, script)
+    -- Delegate to jellyfin-trickplay if it's active for this file
+    if jellyfin_trickplay_active then
+        mp.commandv("script-message-to", "jellyfin-trickplay", "thumb", time, r_x, r_y)
+        return
+    end
+
     if disabled then return end
 
     time = tonumber(time)
@@ -946,6 +958,11 @@ mp.observe_property("duration", "native", on_duration)
 
 mp.register_script_message("thumb", thumb)
 mp.register_script_message("clear", clear)
+
+-- Allow jellyfin-trickplay to register itself
+mp.register_script_message("set-jellyfin-trickplay", function(active)
+    jellyfin_trickplay_active = (active == "true" or active == true)
+end)
 
 mp.register_event("file-loaded", file_load)
 mp.register_event("shutdown", shutdown)
