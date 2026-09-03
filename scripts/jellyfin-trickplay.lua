@@ -8,7 +8,7 @@ local utils = require 'mp.utils'
 local msg = require 'mp.msg'
 
 local CURL = "curl"
-local FFMPEG = "ffmpeg"
+local FFMPEG = "/opt/homebrew/bin/ffmpeg"
 
 local options = {
     enabled = true,
