@@ -717,7 +717,7 @@ file_timer:kill()
 local function clear()
     -- Delegate to jellyfin-trickplay if it's active for this file
     if jellyfin_trickplay_active then
-        mp.commandv("script-message-to", "jellyfin-trickplay", "clear")
+        mp.commandv("script-message-to", "jellyfin_trickplay", "clear")
         return
     end
 
@@ -759,7 +759,7 @@ activity_timer:kill()
 local function thumb(time, r_x, r_y, script)
     -- Delegate to jellyfin-trickplay if it's active for this file
     if jellyfin_trickplay_active then
-        mp.commandv("script-message-to", "jellyfin-trickplay", "thumb", time, r_x, r_y)
+        mp.commandv("script-message-to", "jellyfin_trickplay", "thumb", time, r_x, r_y)
         return
     end
 
