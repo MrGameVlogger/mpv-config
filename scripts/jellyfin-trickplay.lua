@@ -69,7 +69,7 @@ local function download_trickplay_tile(server, item_id, api_key, width, index)
         capture_stderr = true,
         playback_only = false,
         args = {
-            "curl", "-sS", "-L",
+            "/opt/homebrew/bin/curl", "-sS", "-L",
             "-H", "Authorization: MediaBrowser Token=\"" .. api_key .. "\"",
             "-o", tmpfile,
             url
@@ -98,7 +98,7 @@ local function get_user_id(server, api_key)
         capture_stderr = true,
         playback_only = false,
         args = {
-            "curl", "-sS",
+            "/opt/homebrew/bin/curl", "-sS",
             "-H", "Authorization: MediaBrowser Token=\"" .. api_key .. "\"",
             server .. "/Users"
         }
@@ -121,7 +121,7 @@ local function get_trickplay_info(server, item_id, api_key, user_id)
         capture_stderr = true,
         playback_only = false,
         args = {
-            "curl", "-sS",
+            "/opt/homebrew/bin/curl", "-sS",
             "-H", "Authorization: MediaBrowser Token=\"" .. api_key .. "\"",
             url
         }
@@ -159,7 +159,7 @@ local function convert_to_bgra(jpg_path, width, height)
         capture_stderr = true,
         playback_only = false,
         args = {
-            "ffmpeg", "-y", "-i", jpg_path,
+            "/opt/homebrew/bin/ffmpeg", "-y", "-i", jpg_path,
             "-vf", string.format("scale=%d:%d", width, height),
             "-pix_fmt", "bgra",
             "-f", "rawvideo",
