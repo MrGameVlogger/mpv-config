@@ -12,8 +12,9 @@ local FFMPEG = "/opt/homebrew/bin/ffmpeg"
 
 local options = {
     enabled = true,
-    width = 320,
-    overlay_id = 47,  -- Different from thumbfast (42) to avoid conflicts
+    width = 400,   -- Match thumbfast width
+    height = 225,  -- Match thumbfast height
+    overlay_id = 42,  -- Match thumbfast overlay_id
 }
 
 local state = {
@@ -36,8 +37,8 @@ local state = {
 
 local function send_thumbfast_info()
     local json = utils.format_json({
-        width = state.tile_width,
-        height = state.tile_height,
+        width = options.width,
+        height = options.height,
         scale_factor = 1,
         disabled = not state.active,
         available = state.active,
@@ -154,7 +155,7 @@ local function get_trickplay_info(server, item_id, api_key, user_id)
     return nil
 end
 
-local function convert_to_bgra(jpg_path, width, height)
+local function convert_to_bgra(jpg_path, src_width, src_height, dst_width, dst_height)
     local bgra_path = jpg_path:gsub("%.jpg$", ".bgra")
     local result = mp.command_native({
         name = "subprocess",
@@ -163,7 +164,7 @@ local function convert_to_bgra(jpg_path, width, height)
         playback_only = false,
         args = {
             FFMPEG, "-y", "-i", jpg_path,
-            "-vf", string.format("scale=%d:%d", width, height),
+            "-vf", string.format("scale=%d:%d", dst_width, dst_height),
             "-pix_fmt", "bgra",
             "-f", "rawvideo",
             bgra_path
@@ -203,16 +204,16 @@ local function handle_thumb(offset_seconds, x, y)
     local grid_y = math.floor(frame_in_tile / state.tiles_x)
 
     -- Calculate byte offset in the BGRA file
-    -- Each tile image is (tile_width * tiles_x) x (tile_height * tiles_y)
-    local image_width = state.tile_width * state.tiles_x
-    local pixel_offset = (grid_y * state.tile_height * image_width + grid_x * state.tile_width) * 4
+    -- Each tile image is (options.width * tiles_x) x (options.height * tiles_y)
+    local image_width = options.width * state.tiles_x
+    local pixel_offset = (grid_y * options.height * image_width + grid_x * options.width) * 4
 
     if frame ~= state.last_frame or x ~= state.last_x or y ~= state.last_y then
         state.last_frame = frame
         state.last_x = x
         state.last_y = y
         state.is_shown = true
-        mp.commandv("overlay-add", options.overlay_id, x, y, state.tile_file, pixel_offset, "bgra", state.tile_width, state.tile_height, image_width * 4)
+        mp.commandv("overlay-add", options.overlay_id, x, y, state.tile_file, pixel_offset, "bgra", options.width, options.height, image_width * 4)
     end
 end
 
@@ -274,8 +275,8 @@ local function init_trickplay()
         return
     end
 
-    -- Convert to BGRA
-    local bgra_path = convert_to_bgra(jpg_path, info.width * info.tiles_x, info.height * info.tiles_y)
+    -- Convert to BGRA, scaling to match thumbfast dimensions
+    local bgra_path = convert_to_bgra(jpg_path, info.width * info.tiles_x, info.height * info.tiles_y, options.width * info.tiles_x, options.height * info.tiles_y)
     if not bgra_path then
         msg.warn("Failed to convert Trickplay tile to BGRA")
         state.active = false
