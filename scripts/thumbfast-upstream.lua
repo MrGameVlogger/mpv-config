@@ -63,128 +63,6 @@ local pre_0_30_0 = mp.command_native_async == nil
 local pre_0_33_0 = true
 local support_media_control = mp.get_property_native("media-controls") ~= nil
 
--- Jellyfin Trickplay support
-local trickplay = {
-    active = false, server_url = nil, api_key = nil, item_id = nil,
-    tile_width = 0, tile_height = 0, interval = 0,
-    tiles_x = 0, tiles_y = 0, thumbnail_count = 0,
-    tile_file = nil, last_frame = -1, last_x = nil, last_y = nil, is_shown = false,
-}
-local CURL = "curl"
-local FFMPEG = "/opt/homebrew/bin/ffmpeg"
-
-local function extract_jellyfin_info(path)
-    local server = path:match("^(https?://[^/]+/[^/]+)") or path:match("^(https?://[^/]+)")
-    local item_id = path:match("/Videos/([a-f0-9]+)/stream")
-    local api_key = path:match("api_key=([^&]+)")
-    if server and item_id and api_key then return server, item_id, api_key end
-    return nil, nil, nil
-end
-
-local function get_user_id(server, api_key)
-    local result = mp.command_native({name="subprocess", capture_stdout=true, capture_stderr=true, playback_only=false,
-        args={CURL, "-sS", "-H", "Authorization: MediaBrowser Token=\""..api_key.."\"", server.."/Users"}})
-    if result and result.status == 0 and result.stdout then
-        local users = mp.utils.parse_json(result.stdout)
-        if users and users[1] and users[1].Id then return users[1].Id end
-    end
-    return nil
-end
-
-local function get_trickplay_info(server, item_id, api_key, user_id)
-    local url = string.format("%s/Users/%s/Items/%s", server, user_id, item_id)
-    local result = mp.command_native({name="subprocess", capture_stdout=true, capture_stderr=true, playback_only=false,
-        args={CURL, "-sS", "-H", "Authorization: MediaBrowser Token=\""..api_key.."\"", url}})
-    if result and result.status == 0 and result.stdout then
-        local json = mp.utils.parse_json(result.stdout)
-        if json and json.Trickplay then
-            for _, wd in pairs(json.Trickplay) do
-                for ws, info in pairs(wd) do
-                    local w = tonumber(ws)
-                    if w and info then
-                        return {width=info.Width or w, height=info.Height or 180, interval=info.Interval or 10000,
-                            tiles_x=info.TileWidth or 10, tiles_y=info.TileHeight or 10, thumbnail_count=info.ThumbnailCount or 0}
-                    end
-                end
-            end
-        end
-    end
-    return nil
-end
-
-local function download_trickplay_tile(server, item_id, api_key, width, index)
-    local url = string.format("%s/Videos/%s/Trickplay/%d/%d.jpg", server, item_id, width, index)
-    local tmpfile = os.tmpname()..".jpg"
-    local result = mp.command_native({name="subprocess", capture_stdout=true, capture_stderr=true, playback_only=false,
-        args={CURL, "-sS", "-L", "-H", "Authorization: MediaBrowser Token=\""..api_key.."\"", "-o", tmpfile, url}})
-    if result and result.status == 0 then
-        local f = io.open(tmpfile, "rb")
-        if f then local s = f:seek("end"); f:close(); if s and s > 0 then return tmpfile end end
-    end
-    os.remove(tmpfile)
-    return nil
-end
-
-local function convert_to_bgra(jpg, w, h)
-    local bgra = jpg:gsub("%.jpg$", ".bgra")
-    local r = mp.command_native({name="subprocess", capture_stdout=true, capture_stderr=true, playback_only=false,
-        args={FFMPEG, "-y", "-i", jpg, "-vf", string.format("scale=%d:%d", w, h), "-pix_fmt", "bgra", "-f", "rawvideo", bgra}})
-    if r and r.status == 0 then os.remove(jpg); return bgra end
-    os.remove(jpg); os.remove(bgra); return nil
-end
-
-local function cleanup_trickplay()
-    if trickplay.tile_file then os.remove(trickplay.tile_file); trickplay.tile_file = nil end
-    trickplay.active = false; trickplay.last_frame = -1
-end
-
-local function init_trickplay()
-    local path = mp.get_property("path")
-    if not path then return false end
-    local server, item_id, api_key = extract_jellyfin_info(path)
-    if not server or not item_id or not api_key then return false end
-    trickplay.server_url = server; trickplay.item_id = item_id; trickplay.api_key = api_key
-    local uid = get_user_id(server, api_key)
-    if not uid then mp.msg.warn("[thumbfast] Failed to get Jellyfin user ID"); return false end
-    local info = get_trickplay_info(server, item_id, api_key, uid)
-    if not info then mp.msg.info("[thumbfast] No Trickplay data for this item"); return false end
-    trickplay.tile_width = info.width; trickplay.tile_height = info.height
-    trickplay.interval = info.interval; trickplay.tiles_x = info.tiles_x
-    trickplay.tiles_y = info.tiles_y; trickplay.thumbnail_count = info.thumbnail_count
-    local jpg = download_trickplay_tile(server, item_id, api_key, info.width, 0)
-    if not jpg then mp.msg.warn("[thumbfast] Failed to download Trickplay tile"); return false end
-    local bgra = convert_to_bgra(jpg, options.max_width * info.tiles_x, options.max_height * info.tiles_y)
-    if not bgra then mp.msg.warn("[thumbfast] Failed to convert Trickplay tile"); return false end
-    trickplay.tile_file = bgra; trickplay.active = true
-    mp.msg.info("[thumbfast] Trickplay loaded: "..info.width.."x"..info.height..", "..info.tiles_x.."x"..info.tiles_y.." tiles")
-    return true
-end
-
-local function trickplay_thumb(time, x, y)
-    if not trickplay.active or not trickplay.tile_file then return end
-    local frame = math.floor(time / (trickplay.interval / 1000))
-    if frame < 0 then frame = 0 end
-    if frame >= trickplay.thumbnail_count then frame = trickplay.thumbnail_count - 1 end
-    local fit = frame % (trickplay.tiles_x * trickplay.tiles_y)
-    local gx = fit % trickplay.tiles_x
-    local gy = math.floor(fit / trickplay.tiles_x)
-    local iw = options.max_width * trickplay.tiles_x
-    local off = (gy * options.max_height * iw + gx * options.max_width) * 4
-    if frame ~= trickplay.last_frame or x ~= trickplay.last_x or y ~= trickplay.last_y then
-        trickplay.last_frame = frame; trickplay.last_x = x; trickplay.last_y = y
-        trickplay.is_shown = true
-        mp.commandv("overlay-add", options.overlay_id, x, y, trickplay.tile_file, off, "bgra", options.max_width, options.max_height, iw * 4)
-    end
-end
-
-local function trickplay_clear()
-    if trickplay.is_shown then
-        mp.commandv("overlay-remove", options.overlay_id)
-        trickplay.is_shown = false; trickplay.last_frame = -1; trickplay.last_x = nil; trickplay.last_y = nil
-    end
-end
--- End Jellyfin Trickplay support
-
 function subprocess(args, async, callback)
     callback = callback or function() end
 
@@ -537,14 +415,7 @@ local function info(w, h)
         info_timer = mp.add_timeout(0.05, function() info(w, h) end)
     end
 
-    -- Use Trickplay dimensions if active
-    local report_w, report_h = w, h
-    if trickplay.active then
-        report_w = options.max_width
-        report_h = options.max_height
-    end
-
-    local json, err = mp.utils.format_json({width=report_w * options.scale_factor, height=report_h * options.scale_factor, scale_factor=options.scale_factor, disabled=disabled, available=true, socket=options.socket, thumbnail=options.thumbnail, overlay_id=options.overlay_id})
+    local json, err = mp.utils.format_json({width=w * options.scale_factor, height=h * options.scale_factor, scale_factor=options.scale_factor, disabled=disabled, available=true, socket=options.socket, thumbnail=options.thumbnail, overlay_id=options.overlay_id})
     if pre_0_30_0 then
         mp.command_native({"script-message", "thumbfast-info", json})
     else
@@ -844,12 +715,6 @@ end)
 file_timer:kill()
 
 local function clear()
-    -- Use Trickplay if active
-    if trickplay.active then
-        trickplay_clear()
-        return
-    end
-
     file_timer:kill()
     seek_timer:kill()
     if options.quit_after_inactivity > 0 then
@@ -886,16 +751,6 @@ activity_timer = mp.add_timeout(options.quit_after_inactivity, quit)
 activity_timer:kill()
 
 local function thumb(time, r_x, r_y, script)
-    -- Use Trickplay if active
-    if trickplay.active then
-        local tx, ty
-        if r_x ~= "" and r_y ~= "" then
-            tx, ty = math.floor(r_x + 0.5), math.floor(r_y + 0.5)
-        end
-        trickplay_thumb(tonumber(time) or 0, tx, ty)
-        return
-    end
-
     if disabled then return end
 
     time = tonumber(time)
@@ -1036,7 +891,6 @@ local function sync_changes(prop, val)
 end
 
 local function file_load()
-    cleanup_trickplay()
     clear()
     spawned = false
     real_w, real_h = nil, nil
@@ -1048,15 +902,11 @@ local function file_load()
         info_timer = nil
     end
 
-    -- Try to load Trickplay for Jellyfin streams
-    init_trickplay()
-
     calc_dimensions()
     info(effective_w, effective_h)
 end
 
 local function shutdown()
-    cleanup_trickplay()
     run("quit")
     remove_thumbnail_files()
     if os_name ~= "windows" then
