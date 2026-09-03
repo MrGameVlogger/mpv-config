@@ -151,12 +151,28 @@ local function init_trickplay()
     trickplay.tile_width = info.width; trickplay.tile_height = info.height
     trickplay.interval = info.interval; trickplay.tiles_x = info.tiles_x
     trickplay.tiles_y = info.tiles_y; trickplay.thumbnail_count = info.thumbnail_count
+
+    -- Calculate scaled dimensions maintaining aspect ratio
+    local aspect = info.width / info.height
+    local scaled_w, scaled_h
+    if options.max_width / options.max_height > aspect then
+        -- Height is the constraint
+        scaled_h = options.max_height
+        scaled_w = math.floor(scaled_h * aspect + 0.5)
+    else
+        -- Width is the constraint
+        scaled_w = options.max_width
+        scaled_h = math.floor(scaled_w / aspect + 0.5)
+    end
+    trickplay.scaled_w = scaled_w
+    trickplay.scaled_h = scaled_h
+
     local jpg = download_trickplay_tile(server, item_id, api_key, info.width, 0)
     if not jpg then mp.msg.warn("[thumbfast] Failed to download Trickplay tile"); return false end
-    local bgra = convert_to_bgra(jpg, options.max_width * info.tiles_x, options.max_height * info.tiles_y)
+    local bgra = convert_to_bgra(jpg, scaled_w * info.tiles_x, scaled_h * info.tiles_y)
     if not bgra then mp.msg.warn("[thumbfast] Failed to convert Trickplay tile"); return false end
     trickplay.tile_file = bgra; trickplay.active = true
-    mp.msg.info("[thumbfast] Trickplay loaded: "..info.width.."x"..info.height..", "..info.tiles_x.."x"..info.tiles_y.." tiles")
+    mp.msg.info("[thumbfast] Trickplay loaded: "..info.width.."x"..info.height.." -> "..scaled_w.."x"..scaled_h..", "..info.tiles_x.."x"..info.tiles_y.." tiles")
     return true
 end
 
@@ -168,12 +184,12 @@ local function trickplay_thumb(time, x, y)
     local fit = frame % (trickplay.tiles_x * trickplay.tiles_y)
     local gx = fit % trickplay.tiles_x
     local gy = math.floor(fit / trickplay.tiles_x)
-    local iw = options.max_width * trickplay.tiles_x
-    local off = (gy * options.max_height * iw + gx * options.max_width) * 4
+    local iw = trickplay.scaled_w * trickplay.tiles_x
+    local off = (gy * trickplay.scaled_h * iw + gx * trickplay.scaled_w) * 4
     if frame ~= trickplay.last_frame or x ~= trickplay.last_x or y ~= trickplay.last_y then
         trickplay.last_frame = frame; trickplay.last_x = x; trickplay.last_y = y
         trickplay.is_shown = true
-        mp.commandv("overlay-add", options.overlay_id, x, y, trickplay.tile_file, off, "bgra", options.max_width, options.max_height, iw * 4)
+        mp.commandv("overlay-add", options.overlay_id, x, y, trickplay.tile_file, off, "bgra", trickplay.scaled_w, trickplay.scaled_h, iw * 4)
     end
 end
 
@@ -540,8 +556,8 @@ local function info(w, h)
     -- Use Trickplay dimensions if active
     local report_w, report_h = w, h
     if trickplay.active then
-        report_w = options.max_width
-        report_h = options.max_height
+        report_w = trickplay.scaled_w
+        report_h = trickplay.scaled_h
     end
 
     local json, err = mp.utils.format_json({width=report_w * options.scale_factor, height=report_h * options.scale_factor, scale_factor=options.scale_factor, disabled=disabled, available=true, socket=options.socket, thumbnail=options.thumbnail, overlay_id=options.overlay_id})
