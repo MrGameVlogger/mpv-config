@@ -7,6 +7,13 @@ local mp = require 'mp'
 local utils = require 'mp.utils'
 local msg = require 'mp.msg'
 
+-- Ensure Homebrew binaries are in PATH
+local homebrew_path = "/opt/homebrew/bin"
+local current_path = os.getenv("PATH") or ""
+if not current_path:find(homebrew_path, 1, true) then
+    os.setenv("PATH", homebrew_path .. ":" .. current_path)
+end
+
 local options = {
     enabled = true,
     width = 320,
@@ -69,7 +76,7 @@ local function download_trickplay_tile(server, item_id, api_key, width, index)
         capture_stderr = true,
         playback_only = false,
         args = {
-            "/opt/homebrew/bin/curl", "-sS", "-L",
+            "curl", "-sS", "-L",
             "-H", "Authorization: MediaBrowser Token=\"" .. api_key .. "\"",
             "-o", tmpfile,
             url
@@ -98,7 +105,7 @@ local function get_user_id(server, api_key)
         capture_stderr = true,
         playback_only = false,
         args = {
-            "/opt/homebrew/bin/curl", "-sS",
+            "curl", "-sS",
             "-H", "Authorization: MediaBrowser Token=\"" .. api_key .. "\"",
             server .. "/Users"
         }
@@ -121,7 +128,7 @@ local function get_trickplay_info(server, item_id, api_key, user_id)
         capture_stderr = true,
         playback_only = false,
         args = {
-            "/opt/homebrew/bin/curl", "-sS",
+            "curl", "-sS",
             "-H", "Authorization: MediaBrowser Token=\"" .. api_key .. "\"",
             url
         }
@@ -159,7 +166,7 @@ local function convert_to_bgra(jpg_path, width, height)
         capture_stderr = true,
         playback_only = false,
         args = {
-            "/opt/homebrew/bin/ffmpeg", "-y", "-i", jpg_path,
+            "ffmpeg", "-y", "-i", jpg_path,
             "-vf", string.format("scale=%d:%d", width, height),
             "-pix_fmt", "bgra",
             "-f", "rawvideo",
