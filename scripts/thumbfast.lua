@@ -152,16 +152,17 @@ local function init_trickplay()
     trickplay.interval = info.interval; trickplay.tiles_x = info.tiles_x
     trickplay.tiles_y = info.tiles_y; trickplay.thumbnail_count = info.thumbnail_count
 
-    -- Calculate scaled dimensions maintaining aspect ratio
+    -- Calculate scaled dimensions maintaining aspect ratio, with HiDPI scaling
+    local scale = properties["display-hidpi-scale"] or 1
     local aspect = info.width / info.height
     local scaled_w, scaled_h
-    if options.max_width / options.max_height > aspect then
-        -- Height is the constraint
-        scaled_h = options.max_height
+    local max_w = options.max_width * scale
+    local max_h = options.max_height * scale
+    if max_w / max_h > aspect then
+        scaled_h = math.floor(max_h + 0.5)
         scaled_w = math.floor(scaled_h * aspect + 0.5)
     else
-        -- Width is the constraint
-        scaled_w = options.max_width
+        scaled_w = math.floor(max_w + 0.5)
         scaled_h = math.floor(scaled_w / aspect + 0.5)
     end
     trickplay.scaled_w = scaled_w
