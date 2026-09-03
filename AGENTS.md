@@ -178,6 +178,7 @@
   - Jellyfin Trickplay support merged in — fetches server-side thumbnails for Jellyfin streams instead of spawning subprocess.
   - Requires `curl` and `ffmpeg` (at `/opt/homebrew/bin/ffmpeg`) for Trickplay.
   - Upstream backup: `thumbfast-upstream.lua` (verified exact copy from GitHub).
+  - Standalone release: https://github.com/MrGameVlogger/thumbfast-jellyfin
 
 ### trackselect.lua
 - Track selection helper — selects non-dub audio and subtitle tracks automatically.
