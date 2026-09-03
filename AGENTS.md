@@ -173,13 +173,11 @@
 - Repo: https://github.com/po5/thumbfast
 - Spawns a subprocess for thumbnail generation.
 - Config: script-opts/thumbfast.conf
-- Local modification: increased subprocess cache (`--demuxer-readahead-secs=600`, `--demuxer-max-bytes=2048MiB`) for better Jellyfin streaming performance.
-
-### jellyfin-trickplay.lua
-- Fetches Trickplay thumbnails from Jellyfin server for seekbar previews.
-- Uses overlay_id 47 (different from thumbfast's 42).
-- Requires `curl` and `ffmpeg` in PATH.
-- Only activates for Jellyfin streams; falls back to thumbfast for local files.
+- Local modifications:
+  - Increased subprocess cache (`--demuxer-readahead-secs=600`, `--demuxer-max-bytes=2048MiB`) for better Jellyfin streaming performance.
+  - Jellyfin Trickplay support merged in — fetches server-side thumbnails for Jellyfin streams instead of spawning subprocess.
+  - Requires `curl` and `ffmpeg` (at `/opt/homebrew/bin/ffmpeg`) for Trickplay.
+  - Upstream backup: `thumbfast-upstream.lua` (verified exact copy from GitHub).
 
 ### trackselect.lua
 - Track selection helper — selects non-dub audio and subtitle tracks automatically.
