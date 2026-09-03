@@ -46,14 +46,15 @@ end
 local function extract_jellyfin_info(path)
     -- URL pattern: https://host/jellyfin/Videos/{itemId}/stream?static=true&api_key={key}
     -- or: https://host/Videos/{itemId}/stream?...&api_key={key}
-    local server = path:match("^(https?://[^/]+)")
+    local server = path:match("^(https?://[^/]+/[^/]+)")
+    if not server then
+        server = path:match("^(https?://[^/]+)")
+    end
     local item_id = path:match("/Videos/([a-f0-9]+)/stream")
     local api_key = path:match("api_key=([^&]+)")
 
     if server and item_id and api_key then
-        -- Remove /jellyfin suffix if present for API calls
-        local base = server
-        return base, item_id, api_key
+        return server, item_id, api_key
     end
     return nil, nil, nil
 end
