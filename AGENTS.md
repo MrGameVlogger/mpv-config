@@ -7,6 +7,10 @@
 - FFmpeg 9.0.1, libplacebo v7.360.1, MoltenVK 1.4.2
 - Primary media source: Jellyfin server via jellyfin.lua script
 
+## Backup
+- Private GitHub repository: https://github.com/MrGameVlogger/mpv-config
+- Excludes: `.DS_Store`, `mpv.log`, `watch_later/`, `watch_history.jsonl`
+
 ## Configuration Philosophy
 - Do NOT remove or change settings without asking, even if they appear unused.
 - Keep config clean but don't sacrifice functionality for minimalism.
