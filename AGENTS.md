@@ -153,7 +153,7 @@
 - Repo: https://github.com/iwalton3/jf-mpv-osc
 - Replaces ModernX as the active OSC.
 - Works with thumbfast for seekbar thumbnails.
-- Disabled via `osc=no` in mpv.conf but kept updated.
+- `osc=no` in mpv.conf disables the built-in OSC (this script replaces it).
 
 ### modernx.lua (v0.4.7) (DISABLED)
 - On-screen controller replacement by zydezu.
