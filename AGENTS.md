@@ -148,12 +148,19 @@
 
 ## Scripts
 
-### modernx.lua (v0.4.7)
+### trickplay-jf-osc.lua
+- Jellyfin-styled OSC with built-in Trickplay support.
+- Repo: https://github.com/iwalton3/jf-mpv-osc
+- Replaces ModernX as the active OSC.
+- Works with thumbfast for seekbar thumbnails.
+- Disabled via `osc=no` in mpv.conf but kept updated.
+
+### modernx.lua (v0.4.7) (DISABLED)
 - On-screen controller replacement by zydezu.
 - Repo: https://github.com/zydezu/ModernX
-- Disabled via `osc=no` in mpv.conf but kept updated.
+- Disabled by renaming to modernx.lua.disabled.
 - Config: script-opts/modernx.conf
-- Updates: check GitHub releases, download from raw.githubusercontent.com/zydezu/ModernX/main/modernx.lua
+- Re-enable by renaming back to modernx.lua and disabling trickplay-jf-osc.lua.
 
 ### jellyfin.lua
 - Jellyfin playback integration by EmperorPenguin18.

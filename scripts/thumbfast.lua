@@ -1,56 +1,47 @@
--- thumbfast.lua
+-- thumbfast-jellyfin.lua
 --
--- High-performance on-the-fly thumbnailer
+-- Drop-in replacement for thumbfast.lua with Jellyfin Trickplay support.
+-- Fetches pre-generated thumbnails from Jellyfin server instead of spawning
+-- a subprocess for local thumbnail generation.
 --
--- Built for easy integration in third-party UIs.
-
---[[
-This Source Code Form is subject to the terms of the Mozilla Public
-License, v. 2.0. If a copy of the MPL was not distributed with this
-file, You can obtain one at https://mozilla.org/MPL/2.0/.
-]]
+-- Based on thumbfast by po5: https://github.com/po5/thumbfast
+-- Trickplay support added for Jellyfin integration
+--
+-- Requirements:
+--   - curl (system default at /usr/bin/curl)
+--   - ffmpeg (must be in PATH)
+--   - Jellyfin server with Trickplay enabled
+--   - Any thumbfast-compatible OSC (ModernX, uosc, etc.)
+--
+-- Installation:
+--   1. Place this file in your mpv scripts directory
+--   2. Rename to thumbfast.lua (replacing the original)
+--   3. Keep a backup of the original thumbfast.lua
+--   4. Configure via script-opts/thumbfast.conf as usual
+--
+-- How it works:
+--   - On file load, detects Jellyfin streams by URL pattern
+--   - Fetches Trickplay tile images from the Jellyfin API
+--   - Converts tiles to BGRA format using ffmpeg
+--   - Displays thumbnails instantly from server-side data
+--   - Falls back to normal thumbfast for non-Jellyfin content
+--
+-- License: MPL-2.0 (same as upstream thumbfast)
 
 local options = {
-    -- Socket path (leave empty for auto)
     socket = "",
-
-    -- Thumbnail path (leave empty for auto)
     thumbnail = "",
-
-    -- Maximum thumbnail generation size in pixels (scaled down to fit)
-    -- Values are scaled when hidpi is enabled
-    max_height = 200,
-    max_width = 200,
-
-    -- Scale factor for thumbnail display size (requires mpv 0.38+)
-    -- Note that this is lower quality than increasing max_height and max_width
+    max_height = 225,
+    max_width = 400,
     scale_factor = 1,
-
-    -- Apply tone-mapping, no to disable
     tone_mapping = "auto",
-
-    -- Overlay id
     overlay_id = 42,
-
-    -- Spawn thumbnailer on file load for faster initial thumbnails
     spawn_first = false,
-
-    -- Close thumbnailer process after an inactivity period in seconds, 0 to disable
     quit_after_inactivity = 0,
-
-    -- Enable on network playback
     network = false,
-
-    -- Enable on audio playback
     audio = false,
-
-    -- Enable hardware decoding
     hwdec = false,
-
-    -- Windows only: use native Windows API to write to pipe (requires LuaJIT)
     direct_io = false,
-
-    -- Custom path to the mpv executable
     mpv_path = "mpv"
 }
 
@@ -69,9 +60,86 @@ local trickplay = {
     tile_width = 0, tile_height = 0, interval = 0,
     tiles_x = 0, tiles_y = 0, thumbnail_count = 0,
     tile_file = nil, last_frame = -1, last_x = nil, last_y = nil, is_shown = false,
+    scaled_w = 0, scaled_h = 0, frames_written = 0,
+    loading = false,
 }
 local CURL = "curl"
-local FFMPEG = "/opt/homebrew/bin/ffmpeg"
+local FFMPEG = "ffmpeg"
+
+-- Find ffmpeg at startup (macOS Homebrew or system)
+local function find_ffmpeg()
+    local paths = {"/opt/homebrew/bin/ffmpeg", "/usr/local/bin/ffmpeg", "/usr/bin/ffmpeg"}
+    for _, p in ipairs(paths) do
+        local f = io.open(p, "r")
+        if f then f:close(); return p end
+    end
+    return "ffmpeg"  -- fallback to PATH
+end
+FFMPEG = find_ffmpeg()
+
+-- Helper to run subprocesses with correct PATH on macOS
+local os_name = mp.get_property("platform") or "linux"
+local function run_subprocess(args, async, callback)
+    local env = os_name == "darwin" and "PATH=/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin:/usr/local/bin" or nil
+    if async then
+        return mp.command_native_async({name="subprocess", playback_only=true, args=args, env=env}, callback)
+    else
+        return mp.command_native({name="subprocess", capture_stdout=true, capture_stderr=true, playback_only=false, args=args, env=env})
+    end
+end
+
+-- Cache directory
+local CACHE_DIR = (os.getenv("TEMP") or os.getenv("TMPDIR") or "/tmp") .. "/thumbfast-jellyfin-cache"
+
+local function ensure_cache_dir()
+    os.execute("mkdir -p \"" .. CACHE_DIR .. "\"")
+end
+
+local function get_cache_path(item_id, scaled_w, scaled_h, tiles_x, tiles_y)
+    return CACHE_DIR .. "/" .. item_id .. "_" .. scaled_w .. "x" .. scaled_h .. "_" .. tiles_x .. "x" .. tiles_y .. ".bgra"
+end
+
+local function get_cache_info_path(item_id, scaled_w, scaled_h, tiles_x, tiles_y)
+    return CACHE_DIR .. "/" .. item_id .. "_" .. scaled_w .. "x" .. scaled_h .. "_" .. tiles_x .. "x" .. tiles_y .. ".info"
+end
+
+local function load_from_cache(item_id, scaled_w, scaled_h, tiles_x, tiles_y)
+    local cache_path = get_cache_path(item_id, scaled_w, scaled_h, tiles_x, tiles_y)
+    local info_path = get_cache_info_path(item_id, scaled_w, scaled_h, tiles_x, tiles_y)
+
+    local f = io.open(cache_path, "rb")
+    if not f then return nil, 0 end
+
+    local info_f = io.open(info_path, "r")
+    if not info_f then f:close(); return nil, 0 end
+
+    local frames = tonumber(info_f:read("*l")) or 0
+    info_f:close()
+    f:close()
+
+    if frames > 0 then
+        return cache_path, frames
+    end
+    return nil, 0
+end
+
+local function save_to_cache(item_id, scaled_w, scaled_h, tiles_x, tiles_y, bgra_path, frames)
+    ensure_cache_dir()
+    local cache_path = get_cache_path(item_id, scaled_w, scaled_h, tiles_x, tiles_y)
+    local info_path = get_cache_info_path(item_id, scaled_w, scaled_h, tiles_x, tiles_y)
+
+    -- Move BGRA file to cache
+    os.rename(bgra_path, cache_path)
+
+    -- Save frame count
+    local info_f = io.open(info_path, "w")
+    if info_f then
+        info_f:write(tostring(frames) .. "\n")
+        info_f:close()
+    end
+
+    return cache_path
+end
 
 local function extract_jellyfin_info(path)
     local server = path:match("^(https?://[^/]+/[^/]+)") or path:match("^(https?://[^/]+)")
@@ -82,8 +150,7 @@ local function extract_jellyfin_info(path)
 end
 
 local function get_user_id(server, api_key)
-    local result = mp.command_native({name="subprocess", capture_stdout=true, capture_stderr=true, playback_only=false,
-        args={CURL, "-sS", "-H", "Authorization: MediaBrowser Token=\""..api_key.."\"", server.."/Users"}})
+    local result = run_subprocess({CURL, "-sS", "-H", "Authorization: MediaBrowser Token=\""..api_key.."\"", server.."/Users"})
     if result and result.status == 0 and result.stdout then
         local users = mp.utils.parse_json(result.stdout)
         if users and users[1] and users[1].Id then return users[1].Id end
@@ -93,8 +160,7 @@ end
 
 local function get_trickplay_info(server, item_id, api_key, user_id)
     local url = string.format("%s/Users/%s/Items/%s", server, user_id, item_id)
-    local result = mp.command_native({name="subprocess", capture_stdout=true, capture_stderr=true, playback_only=false,
-        args={CURL, "-sS", "-H", "Authorization: MediaBrowser Token=\""..api_key.."\"", url}})
+    local result = run_subprocess({CURL, "-sS", "-H", "Authorization: MediaBrowser Token=\""..api_key.."\"", url})
     if result and result.status == 0 and result.stdout then
         local json = mp.utils.parse_json(result.stdout)
         if json and json.Trickplay then
@@ -115,8 +181,7 @@ end
 local function download_trickplay_tile(server, item_id, api_key, width, index)
     local url = string.format("%s/Videos/%s/Trickplay/%d/%d.jpg", server, item_id, width, index)
     local tmpfile = os.tmpname()..".jpg"
-    local result = mp.command_native({name="subprocess", capture_stdout=true, capture_stderr=true, playback_only=false,
-        args={CURL, "-sS", "-L", "-H", "Authorization: MediaBrowser Token=\""..api_key.."\"", "-o", tmpfile, url}})
+    local result = run_subprocess({CURL, "-sS", "-L", "-H", "Authorization: MediaBrowser Token=\""..api_key.."\"", "-o", tmpfile, url})
     if result and result.status == 0 then
         local f = io.open(tmpfile, "rb")
         if f then local s = f:seek("end"); f:close(); if s and s > 0 then return tmpfile end end
@@ -125,17 +190,80 @@ local function download_trickplay_tile(server, item_id, api_key, width, index)
     return nil
 end
 
-local function convert_to_bgra(jpg, w, h)
-    local bgra = jpg:gsub("%.jpg$", ".bgra")
-    local r = mp.command_native({name="subprocess", capture_stdout=true, capture_stderr=true, playback_only=false,
-        args={FFMPEG, "-y", "-i", jpg, "-vf", string.format("scale=%d:%d", w, h), "-pix_fmt", "bgra", "-f", "rawvideo", bgra}})
-    if r and r.status == 0 then os.remove(jpg); return bgra end
-    os.remove(jpg); os.remove(bgra); return nil
+local function cleanup_trickplay()
+    -- Don't remove cached files
+    if trickplay.tile_file and not trickplay.cached then
+        os.remove(trickplay.tile_file)
+    end
+    trickplay.tile_file = nil
+    trickplay.active = false
+    trickplay.last_frame = -1
+    trickplay.loading = false
 end
 
-local function cleanup_trickplay()
-    if trickplay.tile_file then os.remove(trickplay.tile_file); trickplay.tile_file = nil end
-    trickplay.active = false; trickplay.last_frame = -1
+local function load_trickplay_async(server, item_id, api_key, info, scaled_w, scaled_h)
+    trickplay.loading = true
+    mp.osd_message("Loading thumbnails...", 2)
+
+    -- Calculate how many tile images we need
+    local tiles_per_image = info.tiles_x * info.tiles_y
+    local num_tiles = math.ceil(info.thumbnail_count / tiles_per_image)
+
+    -- Download and concatenate all tiles into one flat BGRA file
+    local final_bgra = os.tmpname() .. ".bgra"
+    local out = io.open(final_bgra, "wb")
+    if not out then mp.msg.warn("[thumbfast] Failed to create output file"); trickplay.loading = false; return end
+
+    local frames_written = 0
+    for i = 0, num_tiles - 1 do
+        local jpg = download_trickplay_tile(server, item_id, api_key, info.width, i)
+        if not jpg then
+            mp.msg.warn("[thumbfast] Failed to download Trickplay tile " .. i)
+            break
+        end
+
+        -- Convert tile to BGRA
+        local tile_bgra = jpg:gsub("%.jpg$", ".bgra")
+        local r = run_subprocess({FFMPEG, "-y", "-i", jpg, "-vf", string.format("scale=%d:%d", scaled_w * info.tiles_x, scaled_h * info.tiles_y), "-pix_fmt", "bgra", "-f", "rawvideo", tile_bgra})
+        os.remove(jpg)
+
+        if r and r.status == 0 then
+            -- Read tile and append to final file
+            local tile_file = io.open(tile_bgra, "rb")
+            if tile_file then
+                local data = tile_file:read("*a")
+                tile_file:close()
+                if data then
+                    out:write(data)
+                    local tile_frames = tiles_per_image
+                    if i == num_tiles - 1 then
+                        tile_frames = info.thumbnail_count - (i * tiles_per_image)
+                    end
+                    frames_written = frames_written + tile_frames
+                end
+            end
+        end
+        os.remove(tile_bgra)
+    end
+
+    out:close()
+
+    if frames_written == 0 then
+        os.remove(final_bgra)
+        mp.msg.warn("[thumbfast] No frames written")
+        trickplay.loading = false
+        return
+    end
+
+    -- Save to cache
+    local cached_path = save_to_cache(item_id, scaled_w, scaled_h, info.tiles_x, info.tiles_y, final_bgra, frames_written)
+
+    trickplay.tile_file = cached_path
+    trickplay.frames_written = frames_written
+    trickplay.active = true
+    trickplay.cached = true
+    trickplay.loading = false
+    mp.msg.info("[thumbfast] Trickplay loaded: "..info.width.."x"..info.height.." -> "..scaled_w.."x"..scaled_h..", "..info.tiles_x.."x"..info.tiles_y.." tiles, "..frames_written.." frames (cached)")
 end
 
 local function init_trickplay()
@@ -168,12 +296,19 @@ local function init_trickplay()
     trickplay.scaled_w = scaled_w
     trickplay.scaled_h = scaled_h
 
-    local jpg = download_trickplay_tile(server, item_id, api_key, info.width, 0)
-    if not jpg then mp.msg.warn("[thumbfast] Failed to download Trickplay tile"); return false end
-    local bgra = convert_to_bgra(jpg, scaled_w * info.tiles_x, scaled_h * info.tiles_y)
-    if not bgra then mp.msg.warn("[thumbfast] Failed to convert Trickplay tile"); return false end
-    trickplay.tile_file = bgra; trickplay.active = true
-    mp.msg.info("[thumbfast] Trickplay loaded: "..info.width.."x"..info.height.." -> "..scaled_w.."x"..scaled_h..", "..info.tiles_x.."x"..info.tiles_y.." tiles")
+    -- Check cache first
+    local cached_path, cached_frames = load_from_cache(item_id, scaled_w, scaled_h, info.tiles_x, info.tiles_y)
+    if cached_path and cached_frames > 0 then
+        trickplay.tile_file = cached_path
+        trickplay.frames_written = cached_frames
+        trickplay.active = true
+        trickplay.cached = true
+        mp.msg.info("[thumbfast] Trickplay loaded from cache: "..scaled_w.."x"..scaled_h..", "..cached_frames.." frames")
+        return true
+    end
+
+    -- Cache miss - load async
+    load_trickplay_async(server, item_id, api_key, info, scaled_w, scaled_h)
     return true
 end
 
@@ -181,7 +316,7 @@ local function trickplay_thumb(time, x, y)
     if not trickplay.active or not trickplay.tile_file then return end
     local frame = math.floor(time / (trickplay.interval / 1000))
     if frame < 0 then frame = 0 end
-    if frame >= trickplay.thumbnail_count then frame = trickplay.thumbnail_count - 1 end
+    if frame >= trickplay.frames_written then frame = trickplay.frames_written - 1 end
     local fit = frame % (trickplay.tiles_x * trickplay.tiles_y)
     local gx = fit % trickplay.tiles_x
     local gy = math.floor(fit / trickplay.tiles_x)
@@ -206,7 +341,6 @@ function subprocess(args, async, callback)
     callback = callback or function() end
 
     if not pre_0_30_0 then
-        -- FIXME: figure out which exact env var needs to be stripped. (PR: #144, Issue: #106 and #139)
         local env = os_name == "darwin" and "PATH="..os.getenv("PATH") or nil
         if async then
             return mp.command_native_async({name = "subprocess", playback_only = true, args = args, env = env}, callback)
@@ -231,21 +365,15 @@ if options.direct_io then
             C = ffi.C,
             bit = require("bit"),
             socket_wc = "",
-
-            -- WinAPI constants
             CP_UTF8 = 65001,
             GENERIC_WRITE = 0x40000000,
             OPEN_EXISTING = 3,
             FILE_FLAG_WRITE_THROUGH = 0x80000000,
             FILE_FLAG_NO_BUFFERING = 0x20000000,
             PIPE_NOWAIT = ffi.new("unsigned long[1]", 0x00000001),
-
             INVALID_HANDLE_VALUE = ffi.cast("void*", -1),
-
-            -- don't care about how many bytes WriteFile wrote, so allocate something to store the result once
             _lpNumberOfBytesWritten = ffi.new("unsigned long[1]"),
         }
-        -- cache flags used in run() to avoid bor() call
         winapi._createfile_pipe_flags = winapi.bit.bor(winapi.FILE_FLAG_WRITE_THROUGH, winapi.FILE_FLAG_NO_BUFFERING)
 
         ffi.cdef[[
@@ -268,7 +396,6 @@ if options.direct_io then
             end
             return ""
         end
-
     else
         options.direct_io = false
     end
@@ -338,7 +465,6 @@ local function get_os()
         raw_os_name = jit.os
     else
         if package.config:sub(1,1) == "\\" then
-            -- Windows
             local env_OS = os.getenv("OS")
             if env_OS then
                 raw_os_name = env_OS
@@ -353,19 +479,15 @@ local function get_os()
     local os_patterns = {
         ["windows"] = "windows",
         ["linux"]   = "linux",
-
         ["osx"]     = "darwin",
         ["mac"]     = "darwin",
         ["darwin"]  = "darwin",
-
         ["^mingw"]  = "windows",
         ["^cygwin"] = "windows",
-
         ["bsd$"]    = "darwin",
         ["sunos"]   = "darwin"
     }
 
-    -- Default to linux
     local str_os_name = "linux"
 
     for pattern, name in pairs(os_patterns) do
@@ -424,7 +546,6 @@ if mpv_path == "mpv" and os_name == "windows" then
 end
 
 if mpv_path == "mpv" and os_name == "darwin" and unique then
-    -- TODO: look into ~~osxbundle/
     mpv_path = string.gsub(subprocess({"ps", "-o", "comm=", "-p", tostring(unique)}).stdout, "[\n\r]", "")
     if mpv_path ~= "mpv" then
         mpv_path = string.gsub(mpv_path, "/mpv%-bundle$", "/mpv")
@@ -663,13 +784,13 @@ local function spawn(time)
                 spawn_waiting = false
                 options.tone_mapping = "no"
                 mp.msg.error("mpv subprocess create failed")
-                if not spawn_working then -- notify users of required configuration
+                if not spawn_working then
                     if options.mpv_path == "mpv" then
                         if properties["current-vo"] == "libmpv" then
-                            if options.mpv_path == mpv_path then -- attempt to locate ImPlay
+                            if options.mpv_path == mpv_path then
                                 mpv_path = "ImPlay"
                                 spawn(time)
-                            else -- ImPlay not in path
+                            else
                                 if os_name ~= "darwin" then
                                     force_disabled = true
                                     info(real_w or effective_w, real_h or effective_h)
@@ -686,7 +807,6 @@ local function spawn(time)
                         end
                     else
                         mp.commandv("show-text", "thumbfast: ERROR! cannot create mpv subprocess", 5000)
-                        -- found ImPlay but not defined in config
                         mp.commandv("script-message-to", "implay", "show-message", "thumbfast", "Set mpv_path=PATH_TO_ImPlay in thumbfast config:\n" .. string.gsub(mp.command_native({"expand-path", "~~/script-opts/thumbfast.conf"}), "[/\\]", path_separator).."\nand restart ImPlay")
                     end
                 end
@@ -766,7 +886,7 @@ local function real_res(req_w, req_h, filesize)
     if diff == 0 then
         return req_w, req_h
     else
-        local threshold = 5 -- throw out results that change too much
+        local threshold = 5
         local long_side, short_side = req_w, req_h
         if req_h > req_w then
             long_side, short_side = req_h, req_w
@@ -787,7 +907,6 @@ local function move_file(from, to)
     if os_name == "windows" then
         os.remove(to)
     end
-    -- move the file because it can get overwritten while overlay-add is reading it, and crash the player
     os.rename(from, to)
 end
 
@@ -826,17 +945,13 @@ local function request_seek()
 end
 
 local function check_new_thumb()
-    -- the slave might start writing to the file after checking existance and
-    -- validity but before actually moving the file, so move to a temporary
-    -- location before validity check to make sure everything stays consistant
-    -- and valid thumbnails don't get overwritten by invalid ones
     local tmp = options.thumbnail..".tmp"
     move_file(options.thumbnail, tmp)
     local finfo = mp.utils.file_info(tmp)
     if not finfo then return false end
     spawn_waiting = false
     local w, h = real_res(effective_w, effective_h, finfo.size)
-    if w then -- only accept valid thumbnails
+    if w then
         move_file(tmp, options.thumbnail..".bgra")
 
         real_w, real_h = w, h
@@ -972,7 +1087,6 @@ local function watch_changes()
 
     if spawned then
         if resized then
-            -- mpv doesn't allow us to change output size
             local seek_time = last_seek_time
             run("quit")
             clear()
@@ -1018,7 +1132,6 @@ local function update_property_dirty(name, value)
 end
 
 local function update_tracklist(name, value)
-    -- current-tracks shim
     for _, track in ipairs(value) do
         if track.type == "video" and track.selected then
             properties["current-tracks/video"] = track
