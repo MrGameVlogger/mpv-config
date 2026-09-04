@@ -203,7 +203,6 @@ end
 
 local function load_trickplay_async(server, item_id, api_key, info, scaled_w, scaled_h)
     trickplay.loading = true
-    mp.osd_message("Loading thumbnails...", 2)
 
     -- Calculate how many tile images we need
     local tiles_per_image = info.tiles_x * info.tiles_y
