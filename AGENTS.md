@@ -19,15 +19,12 @@
 
 ## Known Issues & Quirks
 
-### MoltenVK Display Timing (Critical)
-- MoltenVK's VK_GOOGLE_display_timing extension is broken.
-- None of the display-sync modes work reliably:
-  - `display-resample` — massive frame drops (145 in 57 seconds)
-  - `display-vdrop` — still drops frames (69-88 per session)
-  - `display-desync` — untested but likely same issue
-- **Must use `video-sync=audio`** until MoltenVK fixes their timing implementation.
-- The `DS:` metric in mpv status will not appear with audio sync (this is normal).
-- `interpolation=yes` requires a display-sync mode and cannot be used.
+### MoltenVK Display Timing
+- MoltenVK's VK_GOOGLE_display_timing extension has issues with some display-sync modes.
+- `display-resample` works but may have occasional missed vsyncs (20 per session observed).
+- `interpolation=yes` requires a display-sync mode but is disabled because it causes frame drops and is bad for anime.
+- `video-sync=display-resample` is now enabled for smoother motion.
+- The `DS:` metric in mpv status shows sync quality (5.0 = perfect for 24fps on 120Hz).
 
 ### Hardware Decoding
 - `hwdec=auto-copy` is required (not zero-copy) because scripts need CPU-side frame access.
