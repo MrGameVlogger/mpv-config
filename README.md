@@ -140,7 +140,6 @@ These shaders are not in auto-profiles but can be toggled via keybinds.
 | `vulkan-async-transfer=yes` | Async | Async texture uploads through MoltenVK |
 | `vulkan-async-compute=yes` | Async | Async compute shaders |
 | `profile=high-quality` | High quality | Sets ewa_lanczossharp scaling, sigmoid upscaling, etc. |
-| `video-latency-hacks=yes` | Enabled | Reduces latency |
 
 ### Deband
 
