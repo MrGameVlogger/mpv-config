@@ -80,7 +80,11 @@ FFMPEG = find_ffmpeg()
 -- Helper to run subprocesses with correct PATH on macOS
 local os_name = mp.get_property("platform") or "linux"
 local function run_subprocess(args, async, callback)
-    local env = os_name == "darwin" and "PATH=/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin:/usr/local/bin" or nil
+    local env = nil
+    if os_name == "darwin" then
+        local path = os.getenv("PATH") or ""
+        env = "PATH=" .. path .. ":/opt/homebrew/bin:/usr/local/bin"
+    end
     if async then
         return mp.command_native_async({name="subprocess", playback_only=true, args=args, env=env}, callback)
     else
@@ -368,7 +372,11 @@ function subprocess(args, async, callback)
     callback = callback or function() end
 
     if not pre_0_30_0 then
-        local env = os_name == "darwin" and "PATH=/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin:/usr/local/bin" or nil
+        local env = nil
+        if os_name == "darwin" then
+            local path = os.getenv("PATH") or ""
+            env = "PATH=" .. path .. ":/opt/homebrew/bin:/usr/local/bin"
+        end
         if async then
             return mp.command_native_async({name = "subprocess", playback_only = true, args = args, env = env}, callback)
         else
