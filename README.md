@@ -110,7 +110,7 @@ These shaders are not in auto-profiles but can be toggled via keybinds.
 **How it works:**
 - Auto-profiles apply shaders automatically based on content resolution
 - `Ctrl+g` and `Ctrl+h` override the auto-profiles with manual shader stacks
-- Both manual stacks include `adaptive-sharpen` which is NOT in auto-profiles (too much GPU load for always-on)
+- Both manual stacks include `adaptive-sharpen` which is NOT in auto-profiles (too much sharpening for always-on)
 - Both stacks include `CfL_Prediction` (chroma) and `SSimSuperRes` (anti-ringing) as base layers
 
 ### Shader Details
