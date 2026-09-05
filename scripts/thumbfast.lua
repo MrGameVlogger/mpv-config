@@ -368,7 +368,7 @@ function subprocess(args, async, callback)
     callback = callback or function() end
 
     if not pre_0_30_0 then
-        local env = os_name == "darwin" and "PATH="..os.getenv("PATH") or nil
+        local env = os_name == "darwin" and "PATH=/usr/bin:/bin:/usr/sbin:/sbin:/opt/homebrew/bin:/usr/local/bin" or nil
         if async then
             return mp.command_native_async({name = "subprocess", playback_only = true, args = args, env = env}, callback)
         else
