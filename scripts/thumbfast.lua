@@ -287,6 +287,8 @@ local function load_trickplay_async(server, item_id, api_key, info, scaled_w, sc
     trickplay.active = true
     trickplay.cached = true
     trickplay.loading = false
+    spawned = false
+    spawn_waiting = false
     mp.msg.info("[thumbfast] Trickplay loaded: "..info.width.."x"..info.height.." -> "..scaled_w.."x"..scaled_h..", "..info.tiles_x.."x"..info.tiles_y.." tiles, "..frames_written.." frames (cached)")
 end
 
@@ -327,6 +329,8 @@ local function init_trickplay()
         trickplay.frames_written = cached_frames
         trickplay.active = true
         trickplay.cached = true
+        spawned = false
+        spawn_waiting = false
         mp.msg.info("[thumbfast] Trickplay loaded from cache: "..scaled_w.."x"..scaled_h..", "..cached_frames.." frames")
         return true
     end
