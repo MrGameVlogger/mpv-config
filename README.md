@@ -48,7 +48,6 @@ This configuration is built around three priorities:
 |--------|---------|-----|
 | `trickplay-jf-osc.lua` | Jellyfin-styled OSC | Matches Jellyfin web UI, has skip intro button, works with Trickplay |
 | `thumbfast.lua` | Thumbnail generation | Modified with Jellyfin Trickplay support — fetches pre-generated tiles instead of decoding locally |
-| `jellyfin.lua` | Jellyfin playback integration | Streams from Jellyfin server, handles authentication and playback control |
 | `sponsorblock.lua` | SponsorBlock segment skipping | zydezu's fork integrates with ModernX OSC |
 | `trackselect.lua` | Auto-select non-dub tracks | Picks Japanese audio and English subs automatically for anime |
 
