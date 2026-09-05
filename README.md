@@ -167,6 +167,10 @@ cp -r fonts/ ~/.config/mpv/
 - [Jellyfin MPV Play](https://github.com/MrGameVlogger/Jellyfin_mpv_play) — Jellyfin client that launches mpv from the web UI
 - [thumbfast-jellyfin](https://github.com/MrGameVlogger/thumbfast-jellyfin) — Modified thumbfast with Jellyfin Trickplay support
 
+## Credits & Inspiration
+
+- [classicjazz/mpv-config](https://github.com/classicjazz/mpv-config) — macOS mpv configuration guide with shader recommendations. Detailed write-up: [Configuring MPV for Best Video Quality](https://freetime.mikeconnelly.com/archives/5371). Shader choices, conditional profiles, and Vulkan/MoltenVK setup are based on this guide.
+
 ## License
 
 Configuration files are personal use. Scripts and shaders are subject to their respective licenses (MPL-2.0, GPL-3.0, MIT, Apache-2.0 — see individual files).
