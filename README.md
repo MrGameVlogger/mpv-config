@@ -36,24 +36,24 @@ My personal [mpv](https://mpv.io/) configuration for macOS, optimized for anime 
 
 ## Scripts
 
-| Script | Purpose |
-|--------|---------|
-| `trickplay-jf-osc.lua` | Jellyfin-styled OSC |
-| `thumbfast.lua` | Thumbnail generation (with Jellyfin Trickplay) |
-| `jellyfin.lua` | Jellyfin playback integration |
-| `sponsorblock.lua` | SponsorBlock segment skipping |
-| `trackselect.lua` | Auto-select non-dub tracks |
+| Script | Purpose | Source |
+|--------|---------|--------|
+| `trickplay-jf-osc.lua` | Jellyfin-styled OSC | [iwalton3/jf-mpv-osc](https://github.com/iwalton3/jf-mpv-osc) |
+| `thumbfast.lua` | Thumbnail generation (with Jellyfin Trickplay) | [MrGameVlogger/thumbfast-jellyfin](https://github.com/MrGameVlogger/thumbfast-jellyfin) |
+| `jellyfin.lua` | Jellyfin playback integration | [EmperorPenguin18/mpv-jellyfin](https://github.com/EmperorPenguin18/mpv-jellyfin) |
+| `sponsorblock.lua` | SponsorBlock segment skipping | [zydezu/mpvconfig](https://github.com/zydezu/mpvconfig/blob/main/scripts/sponsorblock.lua) |
+| `trackselect.lua` | Auto-select non-dub tracks | No known repo |
 
 ## Shaders
 
-| Shader | Purpose |
-|--------|---------|
-| `ravu-zoom-ar-r3.hook` | Arbitrary ratio upscaling |
-| `CfL_Prediction.glsl` | Chroma from luma prediction |
-| `SSimSuperRes.glsl` | Super-resolution enhancement |
-| `ArtCNN_C4F16.glsl` | Neural network upscaling (2x) |
-| `SSimDownscaler.glsl` | High-quality downscaling |
-| `adaptive-sharpen.glsl` | Adaptive sharpening |
+| Shader | Purpose | Source |
+|--------|---------|--------|
+| `ravu-zoom-ar-r3.hook` | Arbitrary ratio upscaling | [bjin/mpv-prescalers](https://github.com/bjin/mpv-prescalers) |
+| `CfL_Prediction.glsl` | Chroma from luma prediction | [Artoriuz/glsl-chroma-from-luma-prediction](https://github.com/Artoriuz/glsl-chroma-from-luma-prediction) |
+| `SSimSuperRes.glsl` | Super-resolution enhancement | Original igv repo gone, distributed through mpv community |
+| `ArtCNN_C4F16.glsl` | Neural network upscaling (2x) | [Artoriuz/ArtCNN](https://github.com/Artoriuz/ArtCNN) |
+| `SSimDownscaler.glsl` | High-quality downscaling | Original igv repo gone, distributed through mpv community |
+| `adaptive-sharpen.glsl` | Adaptive sharpening | [bacondither/Adaptive-sharpen](https://github.com/bacondither/Adaptive-sharpen) |
 
 ## Installation
 
