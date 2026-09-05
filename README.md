@@ -259,7 +259,7 @@ These are active when no GLSL shader handles the scaling step (unusual resolutio
 | `save-watch-history=yes` | Enabled | Track watch history |
 | `autocreate-playlist=same` | Same directory | Auto-add files from same directory |
 | `video-sync=audio` | Audio | Audio-driven sync (display-sync broken on MoltenVK) |
-| `interpolation=no` | Disabled | Disabled (requires display-sync mode) |
+| `interpolation=no` | Disabled | Anime is intentionally 24fps — interpolation creates artifacts and loses aesthetic. Also requires display-sync mode which is broken on MoltenVK. |
 | `swapchain-depth=4` | 4 | Extra presentation buffer headroom |
 | `hr-seek=absolute` | Absolute | Precise seeking |
 | `reset-on-next-file=...` | Custom | Reset audio-delay, mute, pause, speed, sub-delay between files |
