@@ -338,6 +338,7 @@ cp -r fonts/ ~/.config/mpv/
 ## Credits & Inspiration
 
 - [classicjazz/mpv-config](https://github.com/classicjazz/mpv-config) — macOS mpv configuration guide with shader recommendations. Detailed write-up: [Configuring MPV for Best Video Quality](https://freetime.mikeconnelly.com/archives/5371). Shader choices, conditional profiles, and Vulkan/MoltenVK setup are based on this guide.
+- [SoM-MPV-Config](https://github.com/JySzE/SoM-MPV-Config) — Anime-focused mpv config. Colorspace profiles, SDH filtering, and display-sync settings are based on this config.
 
 ## License
 
