@@ -58,11 +58,11 @@ The shaders are applied via conditional profiles, so 4K content doesn't get unne
 
 - **Direct streaming** — play from Jellyfin server via [Jellyfin MPV Play](https://github.com/MrGameVlogger/Jellyfin_mpv_play), no browser needed
 - **Trickplay thumbnails** — instant seekbar previews from Jellyfin's pre-generated tiles via [thumbfast-jellyfin](https://github.com/MrGameVlogger/thumbfast-jellyfin)
-- **SponsorBlock** — auto-skip sponsors, intros, outros via [zydezu's fork](https://github.com/zydezu/mpvconfig/blob/main/scripts/sponsorblock.lua)
 - **Custom OSC** — Jellyfin-styled interface with Material icons via [jf-mpv-osc](https://github.com/iwalton3/jf-mpv-osc)
 
 ### Playback
 
+- **SponsorBlock** — auto-skip sponsors, intros, outros via [zydezu's fork](https://github.com/zydezu/mpvconfig/blob/main/scripts/sponsorblock.lua). Works with any OSC (core skipping is independent of ModernX).
 - **Auto-play** — loads adjacent files in directory for binge-watching (`autocreate-playlist=same`)
 - **Episode navigation** — `>` / `<` keys for next/previous episode
 - **Deband toggle** — `n` key to toggle deband on/off (off by default, settings optimized for M2 Max)
@@ -73,7 +73,7 @@ The shaders are applied via conditional profiles, so 4K content doesn't get unne
 |--------|---------|-----|--------|
 | `trickplay-jf-osc.lua` | Jellyfin-styled OSC | Replaces mpv's built-in OSC with a Jellyfin-themed interface. Has skip intro button, action sheets for subtitle/audio selection, and integrates with [thumbfast](https://github.com/po5/thumbfast) for seekbar thumbnails. | [iwalton3/jf-mpv-osc](https://github.com/iwalton3/jf-mpv-osc) |
 | `thumbfast.lua` | Thumbnail generation | [Modified](https://github.com/MrGameVlogger/thumbfast-jellyfin) to fetch pre-generated Trickplay tiles from Jellyfin server instead of spawning a subprocess. Falls back to normal thumbfast for local files. | [po5/thumbfast](https://github.com/po5/thumbfast) + [MrGameVlogger/thumbfast-jellyfin](https://github.com/MrGameVlogger/thumbfast-jellyfin) |
-| `sponsorblock.lua` | SponsorBlock segment skipping | [zydezu's fork](https://github.com/zydezu/mpvconfig/blob/main/scripts/sponsorblock.lua) integrates with ModernX OSC. Skips sponsors, intros, outros, and other segments using the [SponsorBlock](https://sponsor.ajay.app/) database. | [zydezu/mpvconfig](https://github.com/zydezu/mpvconfig/blob/main/scripts/sponsorblock.lua) |
+| `sponsorblock.lua` | SponsorBlock segment skipping | [zydezu's fork](https://github.com/zydezu/mpvconfig/blob/main/scripts/sponsorblock.lua) — core skipping works with any OSC, not just ModernX | [zydezu/mpvconfig](https://github.com/zydezu/mpvconfig/blob/main/scripts/sponsorblock.lua) |
 | `trackselect.lua` | Auto-select non-dub tracks | Automatically selects Japanese audio and English subtitles for anime. Uses track titles to identify non-dub tracks, so it works even when language tags are missing. | [po5/trackselect](https://github.com/po5/trackselect) |
 
 ### Disabled & Backup Scripts
