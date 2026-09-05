@@ -42,7 +42,7 @@ My personal [mpv](https://mpv.io/) configuration for macOS, optimized for anime 
 | `thumbfast.lua` | Thumbnail generation (with Jellyfin Trickplay) | [MrGameVlogger/thumbfast-jellyfin](https://github.com/MrGameVlogger/thumbfast-jellyfin) |
 | `jellyfin.lua` | Jellyfin playback integration | [EmperorPenguin18/mpv-jellyfin](https://github.com/EmperorPenguin18/mpv-jellyfin) |
 | `sponsorblock.lua` | SponsorBlock segment skipping | [zydezu/mpvconfig](https://github.com/zydezu/mpvconfig/blob/main/scripts/sponsorblock.lua) |
-| `trackselect.lua` | Auto-select non-dub tracks | No known repo |
+| `trackselect.lua` | Auto-select non-dub tracks | [po5/trackselect](https://github.com/po5/trackselect) |
 
 ## Shaders
 

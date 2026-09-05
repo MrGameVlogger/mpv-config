@@ -189,8 +189,7 @@
 
 ### trackselect.lua
 - Track selection helper — selects non-dub audio and subtitle tracks automatically.
-- Inspired by https://github.com/siikamiika/scripts/blob/master/mpv%20scripts/dualaudiofix.lua
-- Original source/author unknown — no public repo found. May be from a wiki page or forum post.
+- Repo: https://github.com/po5/trackselect
 - Config: script-opts/trackselect.conf
 
 ### autocrop.lua (DISABLED)
