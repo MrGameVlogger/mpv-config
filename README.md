@@ -51,7 +51,7 @@ The shaders are applied via conditional profiles, so 4K content doesn't get unne
 ### Video Rendering
 
 - **gpu-next** with Vulkan (via MoltenVK) — modern rendering pipeline with better color management than the legacy `gpu` VO
-- **VideoToolbox hardware decoding** — `auto-copy` mode (not zero-copy) because scripts like autocrop need CPU-side frame access
+- **VideoToolbox hardware decoding** — `auto-copy` mode (not zero-copy) because thumbfast Trickplay needs CPU-side frame access
 - **Conditional shader profiles** — different shader stacks for 4K, 1080p-1440p, and sub-1080p content
 
 ### Jellyfin Integration
@@ -140,7 +140,7 @@ These shaders are not in auto-profiles but can be toggled via keybinds.
 | `vulkan-async-transfer=yes` | Async | Async texture uploads through MoltenVK |
 | `vulkan-async-compute=yes` | Async | Async compute shaders |
 | `profile=high-quality` | High quality | Sets ewa_lanczossharp scaling, sigmoid upscaling, etc. |
-| `video-latency-hacks=yes` | Enabled | Reduces latency (safe without display-sync) |
+| `video-latency-hacks=yes` | Enabled | Reduces latency |
 
 ### Deband
 
@@ -167,13 +167,26 @@ These shaders are not in auto-profiles but can be toggled via keybinds.
 | `target-trc=auto` | Auto | Auto-detect display transfer function |
 | `video-output-levels=full` | Full range | Full range output for accurate colors |
 
+### Colorspace Profiles
+
+Applied automatically based on content type:
+
+| Profile | Condition | Settings |
+|---------|-----------|----------|
+| **SD NTSC** | bt.601-525 primaries | target-prim=bt.601-525, target-trc=bt.1886 |
+| **SD PAL** | bt.601-625 primaries | target-prim=bt.601-625, target-trc=bt.1886 |
+| **HD BT.709** | bt.709 primaries | target-prim=bt.709, target-trc=bt.1886 |
+| **SDR UHD BT.2020** | bt.2020 primaries, SDR | target-prim=bt.709, gamut-mapping-mode=absolute |
+| **HDR** | PQ/HLG gamma | bt.2446a tone mapping, target-peak=1600, HDR passthrough |
+
 ### Fallback Scalers
 
 These are active when no GLSL shader handles the scaling step (unusual resolutions, non-4K displays, final RGB output pass):
 
 | Option | Value | Why |
 |--------|-------|-----|
-| `scale=ewa_lanczos` | Jinc | High quality polar luma upscale fallback |
+| `scale=ewa_lanczos` | EWA Lanczos | High quality polar luma upscale fallback |
+| `cscale=ewa_lanczossharp` | EWA Lanczossharp | Chroma scaling |
 | `dscale=catmull_rom` | Catmull-Rom | Good quality luma downscale |
 | `correct-downscaling=yes` | Enabled | Proper windowed filter for large ratio downscaling |
 | `linear-downscaling=yes` | Enabled | Downscale in linear light (more correct for luminance blending) |
@@ -260,8 +273,8 @@ These are active when no GLSL shader handles the scaling step (unusual resolutio
 | `save-position-on-quit=yes` | Enabled | Resume from last position |
 | `save-watch-history=yes` | Enabled | Track watch history |
 | `autocreate-playlist=same` | Same directory | Auto-add files from same directory |
-| `video-sync=audio` | Audio | Audio-driven sync (display-sync broken on MoltenVK) |
-| `interpolation=no` | Disabled | Anime is intentionally 24fps — interpolation creates artifacts and loses aesthetic. Also requires display-sync mode which is broken on MoltenVK. |
+| `video-sync=display-resample` | Display-resample | Display-sync for smoother motion (5:1 cadence for 24fps on 120Hz) |
+| `interpolation=no` | Disabled | Anime is intentionally 24fps — interpolation creates artifacts and loses aesthetic |
 | `swapchain-depth=4` | 4 | Extra presentation buffer headroom |
 | `hr-seek=absolute` | Absolute | Precise seeking |
 | `reset-on-next-file=...` | Custom | Reset audio-delay, mute, pause, speed, sub-delay between files |
