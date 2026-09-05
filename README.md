@@ -44,32 +44,32 @@ This configuration is built around three priorities:
 
 ## Scripts
 
-| Script | Purpose | Why |
-|--------|---------|-----|
-| `trickplay-jf-osc.lua` | Jellyfin-styled OSC | Matches Jellyfin web UI, has skip intro button, works with Trickplay |
-| `thumbfast.lua` | Thumbnail generation | Modified with Jellyfin Trickplay support — fetches pre-generated tiles instead of decoding locally |
-| `sponsorblock.lua` | SponsorBlock segment skipping | zydezu's fork integrates with ModernX OSC |
-| `trackselect.lua` | Auto-select non-dub tracks | Picks Japanese audio and English subs automatically for anime |
+| Script | Purpose | Why | Source |
+|--------|---------|-----|--------|
+| `trickplay-jf-osc.lua` | Jellyfin-styled OSC | Replaces mpv's built-in OSC with a Jellyfin-themed interface. Has skip intro button, action sheets for subtitle/audio selection, and integrates with [thumbfast](https://github.com/po5/thumbfast) for seekbar thumbnails. | [iwalton3/jf-mpv-osc](https://github.com/iwalton3/jf-mpv-osc) |
+| `thumbfast.lua` | Thumbnail generation | [Modified](https://github.com/MrGameVlogger/thumbfast-jellyfin) to fetch pre-generated Trickplay tiles from Jellyfin server instead of spawning a subprocess. Falls back to normal thumbfast for local files. | [po5/thumbfast](https://github.com/po5/thumbfast) + [MrGameVlogger/thumbfast-jellyfin](https://github.com/MrGameVlogger/thumbfast-jellyfin) |
+| `sponsorblock.lua` | SponsorBlock segment skipping | [zydezu's fork](https://github.com/zydezu/mpvconfig/blob/main/scripts/sponsorblock.lua) integrates with ModernX OSC. Skips sponsors, intros, outros, and other segments using the [SponsorBlock](https://sponsor.ajay.app/) database. | [zydezu/mpvconfig](https://github.com/zydezu/mpvconfig/blob/main/scripts/sponsorblock.lua) |
+| `trackselect.lua` | Auto-select non-dub tracks | Automatically selects Japanese audio and English subtitles for anime. Uses track titles to identify non-dub tracks, so it works even when language tags are missing. | [po5/trackselect](https://github.com/po5/trackselect) |
 
 ### Disabled & Backup Scripts
 
 | File | Status | Reason |
 |------|--------|--------|
-| `jellyfin.lua.disabled` | Disabled | Redundant with Jellyfin MPV Play (handles everything via IPC). Kept for standalone use. |
-| `autocrop.lua.disabled` | Disabled | Stock mpv script. Caused `p010`/`yuv420p10` pixel format toggling with `hwdec=auto-copy`, leading to GPU pipeline thrashing on 10-bit content. |
-| `modernx.lua.disabled` | Disabled | Previous OSC. Replaced by `trickplay-jf-osc.lua` for Jellyfin integration. Kept in case you want to switch back. |
-| `thumbfast-upstream.lua.bak` | Backup | Original upstream thumbfast before Jellyfin Trickplay modifications. Used to sync updates from upstream. |
+| `jellyfin.lua.disabled` | Disabled | Was the original Jellyfin client script. Now redundant with [Jellyfin MPV Play](https://github.com/MrGameVlogger/Jellyfin_mpv_play) which handles everything via IPC. Kept for standalone use without the macOS app. |
+| `autocrop.lua.disabled` | Disabled | Stock mpv script for automatic black bar detection. Caused `p010`/`yuv420p10` pixel format toggling with `hwdec=auto-copy`, leading to GPU pipeline thrashing on 10-bit anime content. |
+| `modernx.lua.disabled` | Disabled | Was the previous OSC. Replaced by `trickplay-jf-osc.lua` which has native Jellyfin integration. Kept in case you want to switch back to the modern mpv style. |
+| `thumbfast-upstream.lua.bak` | Backup | Original upstream [thumbfast](https://github.com/po5/thumbfast) before [Jellyfin Trickplay modifications](https://github.com/MrGameVlogger/thumbfast-jellyfin). Used to sync updates from upstream. |
 
 ## Shaders
 
-| Shader | Purpose | Why |
-|--------|---------|-----|
-| `ravu-zoom-ar-r3.hook` | Arbitrary ratio upscaling | Best for non-integer scales (720p→4K), handles any resolution |
-| `CfL_Prediction.glsl` | Chroma from luma prediction | Reconstructs chroma signal from luma — visible improvement on anime |
-| `SSimSuperRes.glsl` | Super-resolution enhancement | Reduces ringing from sharp scalers, 4 render passes |
-| `ArtCNN_C4F16.glsl` | Neural network upscaling (2x) | Best for 1080p→4K, superseded FSRCNNX with less ringing |
-| `SSimDownscaler.glsl` | High-quality downscaling | For 4K content on 1080p displays |
-| `adaptive-sharpen.glsl` | Adaptive sharpening | Post-resize sharpening that adapts to local content |
+| Shader | Purpose | Why | Source |
+|--------|---------|-----|--------|
+| `ravu-zoom-ar-r3.hook` | Arbitrary ratio upscaling | Best for non-integer scales (720p→4K). Unlike fixed-ratio shaders, handles any resolution. Part of the RAVU family which produces less ringing than NNEDI3. | [bjin/mpv-prescalers](https://github.com/bjin/mpv-prescalers) |
+| `CfL_Prediction.glsl` | Chroma from luma prediction | Reconstructs chroma signal from luma information. Produces sharper chroma upsampling than bilinear/bicubic, especially visible on anime color gradients. | [Artoriuz/glsl-chroma-from-luma-prediction](https://github.com/Artoriuz/glsl-chroma-from-luma-prediction) |
+| `SSimSuperRes.glsl` | Super-resolution enhancement | Anti-ringing shader that sharpens while preserving detail. Uses SSIM (structural similarity) to avoid over-sharpening. 4 render passes (2 downscale + variance + 3x3 final). | Original [igv/SSimSuperRes](https://github.com/igv) repo gone, distributed through mpv community |
+| `ArtCNN_C4F16.glsl` | Neural network upscaling (2x) | Best for 1080p→4K. Superseded [FSRCNNX](https://github.com/igv/FSRCNNX) with less ringing and better detail. Uses a lightweight CNN (4 layers, 16 filters). | [Artoriuz/ArtCNN](https://github.com/Artoriuz/ArtCNN) |
+| `SSimDownscaler.glsl` | High-quality downscaling | For watching 4K content on 1080p displays. Uses SSIM-based approach for sharper downscaling than bilinear. | Original [igv/SSimDownscaler](https://github.com/igv) repo gone, distributed through mpv community |
+| `adaptive-sharpen.glsl` | Adaptive sharpening | Post-resize sharpening that adapts to local content. Avoids over-sharpening flat areas while enhancing edges. Applied after upscaling. | [bacondither/Adaptive-sharpen](https://github.com/bacondither/Adaptive-sharpen) |
 
 ### Shader Profiles
 
