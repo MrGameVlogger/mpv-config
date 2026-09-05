@@ -1,0 +1,56 @@
+# The url of your server
+# ex. https://jellyfin.example.com
+# or http://192.168.1.40:8096/jellyfin
+url=https://your-server.com/jellyfin
+
+# Just your username
+# ex. billy
+username=your_username
+
+# Just your password, matching the username
+# ex. pass123
+password=your_password
+
+# The system path to store images
+# ex. /tmp/mpv-jellyfin
+# or /home/billy/.cache/mpv-jellyfin
+image_path=~/.cache/mpv-jellyfin
+
+# Display banner images for libraries, folders and media
+# Defaults to off
+# ex. on
+hide_images=off
+
+# Should descriptions be hidden if the item hasn't been watched yet
+# Defaults to on
+# ex. off
+hide_spoilers=off
+
+# Show the script's UI at start
+# Defaults to off
+# ex. on
+show_by_default=off
+
+# Show the script's UI again once file playback has ended. Requires
+# mpv to be started with the --idle flag so that the window persists
+# after playback has finished.
+# Defaults to off
+# ex. on
+show_on_idle=off
+
+# Replace the current playlist when you play a video
+# Defaults to off
+# ex. on
+use_playlist=on
+
+# Change the colours of item titles
+# Uses bgr hex format
+# ex. FF is red, FF00 is green, FF0000 is blue
+colour_default=FFFFFF
+colour_selected=FF
+colour_watched=A0A0A0
+
+# Change how titles are sorted in the menu
+# Mode 0: Name
+# Mode 1: Newest
+sort_mode=0

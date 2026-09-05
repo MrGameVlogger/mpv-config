@@ -2,3 +2,5 @@
 mpv.log
 watch_later/
 watch_history.jsonl
+script-opts/jellyfin.conf
+sponsorblock.txt
