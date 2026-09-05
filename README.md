@@ -98,6 +98,21 @@ These shaders are applied automatically based on content resolution via conditio
 | **Sub-1080p** | height < 1080 | RAVU + CfL + SSimSuperRes | Same pipeline, RAVU handles larger upscale factor |
 | **HDR** | PQ/HLG gamma | bt.2446a tone mapping | Perceptual tone mapping for HDR content on SDR display |
 
+### Keybind Stacks (Toggle Manually)
+
+These shaders are not in auto-profiles but can be toggled via keybinds.
+
+| Keybind | Cycles Between | What's In Each Stack | Purpose |
+|---------|----------------|---------------------|---------|
+| `Ctrl+g` | RAVU stack ↔ ArtCNN stack ↔ off | **RAVU stack:** `ravu-zoom-ar-r3.hook` + `CfL_Prediction.glsl` + `SSimSuperRes.glsl` + `adaptive-sharpen.glsl`<br>**ArtCNN stack:** `ArtCNN_C4F16.glsl` + `CfL_Prediction.glsl` + `SSimSuperRes.glsl` + `adaptive-sharpen.glsl` | Switch upscaling strategy — RAVU for arbitrary ratios (720p→4K), ArtCNN for 2x (1080p→4K). Third press turns off all manual shaders. |
+| `Ctrl+h` | SSimDownscaler stack ↔ off | **SSimDownscaler stack:** `SSimDownscaler.glsl` + `CfL_Prediction.glsl` + `SSimSuperRes.glsl` + `adaptive-sharpen.glsl` | Toggle downscaling for 4K content on 1080p display. Hit again to turn off and return to auto-profiles. |
+
+**How it works:**
+- Auto-profiles apply shaders automatically based on content resolution
+- `Ctrl+g` and `Ctrl+h` override the auto-profiles with manual shader stacks
+- Both manual stacks include `adaptive-sharpen` which is NOT in auto-profiles (too much GPU load for always-on)
+- Both stacks include `CfL_Prediction` (chroma) and `SSimSuperRes` (anti-ringing) as base layers
+
 ### Shader Details
 
 | Shader | Purpose | Why | Source |
@@ -275,23 +290,10 @@ These are active when no GLSL shader handles the scaling step (unusual resolutio
 
 ## Keybindings
 
-### Shader Stacks
-
-| Keybind | Cycles Between | What's In Each Stack | Purpose |
-|---------|----------------|---------------------|---------|
-| `Ctrl+g` | RAVU stack ↔ ArtCNN stack ↔ off | **RAVU stack:** `ravu-zoom-ar-r3.hook` + `CfL_Prediction.glsl` + `SSimSuperRes.glsl` + `adaptive-sharpen.glsl`<br>**ArtCNN stack:** `ArtCNN_C4F16.glsl` + `CfL_Prediction.glsl` + `SSimSuperRes.glsl` + `adaptive-sharpen.glsl` | Switch upscaling strategy — RAVU for arbitrary ratios (720p→4K), ArtCNN for 2x (1080p→4K). Third press turns off all manual shaders. |
-| `Ctrl+h` | SSimDownscaler stack ↔ off | **SSimDownscaler stack:** `SSimDownscaler.glsl` + `CfL_Prediction.glsl` + `SSimSuperRes.glsl` + `adaptive-sharpen.glsl` | Toggle downscaling for 4K content on 1080p display. Hit again to turn off and return to auto-profiles. |
-
-**How it works:**
-- Auto-profiles (4K, 1080p-1440p, Sub-1080p) apply shaders automatically based on content resolution
-- `Ctrl+g` and `Ctrl+h` override the auto-profiles with manual shader stacks
-- Both manual stacks include `adaptive-sharpen` which is NOT in auto-profiles (too much GPU load for always-on)
-- Both stacks include `CfL_Prediction` (chroma) and `SSimSuperRes` (anti-ringing) as base layers
-
-### Other Keybinds
-
 | Key | Action | Why |
 |-----|--------|-----|
+| `Ctrl+g` | Cycle RAVU ↔ ArtCNN ↔ off | Switch upscaling strategy (see [Keybind Stacks](#keybind-stacks-toggle-manually)) |
+| `Ctrl+h` | Cycle SSimDownscaler ↔ off | Toggle downscaling for 4K on 1080p (see [Keybind Stacks](#keybind-stacks-toggle-manually)) |
 | `n` | Toggle deband | Off by default, toggle when banding is visible |
 | `k` | Toggle sub-ass-override | Switch between styled and plain subtitles |
 | `>` / `<` | Next/previous episode | Quick navigation during binge sessions |
