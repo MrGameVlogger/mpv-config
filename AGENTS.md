@@ -256,3 +256,7 @@ All shaders are in the `shaders/` directory and applied via conditional profiles
 - 2026-07-29: mpv 0.41.0_7 — libbluray 1.5.0 revision bump
 - 2026-08-11: mpv 0.41.0_8 — ffmpeg 9.0 revision bump (caused frame drops due to MoltenVK display timing)
 - 2026-08-31: mpv 0.41.0_9 — ffmpeg 9.0.1 bugfix, Vapoursynth 74+ backport
+
+## Credits & Inspiration
+- classicjazz/mpv-config — macOS mpv configuration guide with shader recommendations
+- SoM-MPV-Config — anime-focused mpv config with colorspace profiles and SDH filtering
