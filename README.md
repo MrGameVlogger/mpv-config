@@ -17,28 +17,53 @@ My personal [mpv](https://mpv.io/) configuration for macOS, optimized for anime 
 
 This configuration is built around three priorities:
 
-1. **Anime-first** — Japanese audio with English subtitles, auto-selecting non-dub tracks
-2. **Jellyfin integration** — stream directly from my Jellyfin server with full playback control
-3. **High-quality rendering** — maximize the M2 Max GPU with shaders that make a visible difference
+### 1. Anime-First
+
+Most anime is in Japanese with English subtitles, but many releases include dub tracks that mpv might select by default. This setup fixes that:
+
+- **`trackselect.lua`** automatically selects Japanese audio and English subtitles based on track titles, even when language tags are missing
+- **Language priority** in `mpv.conf` puts Japanese first (`alang=ja,jp,jpn`) and Middle English before English for subtitles (`slang=enm,eng,en`) — the `enm` catches honorifics in fansubs
+- **`subs-with-matching-audio=no`** prevents mpv from auto-selecting subtitles that match the audio language (which would show Japanese subs on Japanese audio)
+
+### 2. Jellyfin Integration
+
+I watch everything through Jellyfin, so the setup is optimized for streaming:
+
+- **[Jellyfin MPV Play](https://github.com/MrGameVlogger/Jellyfin_mpv_play)** launches mpv from the Jellyfin web UI — no need to copy URLs or use a browser
+- **[thumbfast-jellyfin](https://github.com/MrGameVlogger/thumbfast-jellyfin)** fetches pre-generated Trickplay thumbnails from the server instead of decoding video locally — instant seekbar previews with zero CPU overhead
+- **[jf-mpv-osc](https://github.com/iwalton3/jf-mpv-osc)** provides a Jellyfin-styled OSC with skip intro button, action sheets for subtitle/audio selection, and queue navigation
+- **Large cache** (`demuxer-max-bytes=8192M`) buffers aggressively for smooth streaming over network
+
+### 3. High-Quality Rendering
+
+The M2 Max has plenty of GPU headroom, so I use shaders that make a visible difference:
+
+- **RAVU upscaling** for arbitrary ratios (720p→4K) — less ringing than NNEDI3
+- **ArtCNN** for 2x upscaling (1080p→4K) — neural network that superseded FSRCNNX
+- **CfL Prediction** for chroma — reconstructs chroma from luma, sharper than bilinear
+- **SSimSuperRes** for anti-ringing — sharpens without over-sharpening flat areas
+- **Conditional profiles** apply the right shader stack based on content resolution
+
+The shaders are applied via conditional profiles, so 4K content doesn't get unnecessary upscaling, and sub-1080p content gets the full treatment.
 
 ## Features
 
 ### Video Rendering
 
-- **gpu-next** with Vulkan (via MoltenVK) — modern rendering pipeline with better color management
-- **VideoToolbox hardware decoding** — `auto-copy` mode for script compatibility (autocrop needs CPU-side frames)
-- **High-quality shaders** — RAVU upscaling, CfL chroma prediction, SSimSuperRes anti-ringing
+- **gpu-next** with Vulkan (via MoltenVK) — modern rendering pipeline with better color management than the legacy `gpu` VO
+- **VideoToolbox hardware decoding** — `auto-copy` mode (not zero-copy) because scripts like autocrop need CPU-side frame access
+- **Conditional shader profiles** — different shader stacks for 4K, 1080p-1440p, and sub-1080p content
 
 ### Jellyfin Integration
 
-- **Direct streaming** — play from Jellyfin server via `jellyfin.lua`, no browser needed
-- **Trickplay thumbnails** — instant seekbar previews from Jellyfin's pre-generated tiles
-- **SponsorBlock** — auto-skip sponsors, intros, outros (via zydezu's fork)
-- **Custom OSC** — Jellyfin-styled interface with Material icons (jf-mpv-osc)
+- **Direct streaming** — play from Jellyfin server via [Jellyfin MPV Play](https://github.com/MrGameVlogger/Jellyfin_mpv_play), no browser needed
+- **Trickplay thumbnails** — instant seekbar previews from Jellyfin's pre-generated tiles via [thumbfast-jellyfin](https://github.com/MrGameVlogger/thumbfast-jellyfin)
+- **SponsorBlock** — auto-skip sponsors, intros, outros via [zydezu's fork](https://github.com/zydezu/mpvconfig/blob/main/scripts/sponsorblock.lua)
+- **Custom OSC** — Jellyfin-styled interface with Material icons via [jf-mpv-osc](https://github.com/iwalton3/jf-mpv-osc)
 
 ### Playback
 
-- **Auto-play** — loads adjacent files in directory for binge-watching
+- **Auto-play** — loads adjacent files in directory for binge-watching (`autocreate-playlist=same`)
 - **Episode navigation** — `>` / `<` keys for next/previous episode
 - **Deband toggle** — `n` key to toggle deband on/off (off by default, settings optimized for M2 Max)
 
