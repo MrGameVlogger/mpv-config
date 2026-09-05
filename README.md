@@ -87,6 +87,29 @@ The shaders are applied via conditional profiles, so 4K content doesn't get unne
 
 ## Shaders
 
+### Auto-Profiles (Always Active)
+
+These shaders are applied automatically based on content resolution via conditional profiles in `mpv.conf`:
+
+| Profile | Condition | Shaders | Why |
+|---------|-----------|---------|-----|
+| **4K** | height >= 2160 | CfL + SSimSuperRes | No upscaling needed, just chroma improvement and anti-ringing |
+| **1080p-1440p** | 1080 <= height < 2160 | RAVU + CfL + SSimSuperRes | Full upscaling pipeline for most anime BDRips |
+| **Sub-1080p** | height < 1080 | RAVU + CfL + SSimSuperRes | Same pipeline, RAVU handles larger upscale factor |
+| **HDR** | PQ/HLG gamma | bt.2446a tone mapping | Perceptual tone mapping for HDR content on SDR display |
+
+### Keybind-Only (Toggle Manually)
+
+These shaders are not in auto-profiles but can be toggled via keybinds:
+
+| Shader | Keybind | Purpose | Why |
+|--------|---------|---------|-----|
+| `ArtCNN_C4F16.glsl` | `Ctrl+g` | Replaces RAVU in the upscaling pipeline | Better for 2x upscaling (1080p→4K), less ringing than RAVU |
+| `SSimDownscaler.glsl` | `Ctrl+h` | High-quality downscaling | For watching 4K content on 1080p displays |
+| `adaptive-sharpen.glsl` | — | Post-resize sharpening | Available but not in any profile (use script-message to toggle) |
+
+### Shader Details
+
 | Shader | Purpose | Why | Source |
 |--------|---------|-----|--------|
 | `ravu-zoom-ar-r3.hook` | Arbitrary ratio upscaling | Best for non-integer scales (720p→4K). Unlike fixed-ratio shaders, handles any resolution. Part of the RAVU family which produces less ringing than NNEDI3. | [bjin/mpv-prescalers](https://github.com/bjin/mpv-prescalers) |
@@ -95,17 +118,6 @@ The shaders are applied via conditional profiles, so 4K content doesn't get unne
 | `ArtCNN_C4F16.glsl` | Neural network upscaling (2x) | Best for 1080p→4K. Superseded [FSRCNNX](https://github.com/igv/FSRCNNX) with less ringing and better detail. Uses a lightweight CNN (4 layers, 16 filters). | [Artoriuz/ArtCNN](https://github.com/Artoriuz/ArtCNN) |
 | `SSimDownscaler.glsl` | High-quality downscaling | For watching 4K content on 1080p displays. Uses SSIM-based approach for sharper downscaling than bilinear. | Original [igv/SSimDownscaler](https://github.com/igv) repo gone, distributed through mpv community |
 | `adaptive-sharpen.glsl` | Adaptive sharpening | Post-resize sharpening that adapts to local content. Avoids over-sharpening flat areas while enhancing edges. Applied after upscaling. | [bacondither/Adaptive-sharpen](https://github.com/bacondither/Adaptive-sharpen) |
-
-### Shader Profiles
-
-Shaders are applied conditionally based on content resolution:
-
-| Profile | Condition | Shaders |
-|---------|-----------|---------|
-| **4K** | height >= 2160 | CfL + SSimSuperRes (no upscaling needed) |
-| **1080p-1440p** | 1080 <= height < 2160 | RAVU + CfL + SSimSuperRes |
-| **Sub-1080p** | height < 1080 | RAVU + CfL + SSimSuperRes |
-| **HDR** | PQ/HLG gamma | bt.2446a tone mapping |
 
 ## Key Files
 
