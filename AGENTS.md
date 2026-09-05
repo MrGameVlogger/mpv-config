@@ -21,10 +21,10 @@
 
 ### MoltenVK Display Timing
 - MoltenVK's VK_GOOGLE_display_timing extension has issues with some display-sync modes.
-- `display-resample` works but may have occasional missed vsyncs (20 per session observed).
+- `display-resample` works but has occasional missed vsyncs (100-600 per session observed).
 - `interpolation=yes` requires a display-sync mode but is disabled because it causes frame drops and is bad for anime.
-- `video-sync=display-resample` is now enabled for smoother motion.
-- The `DS:` metric in mpv status shows sync quality (5.0 = perfect for 24fps on 120Hz).
+- `video-sync=audio` is used because all content has clean ratios on 120Hz (24fps=5:1, 30fps=4:1, 60fps=2:1).
+- Display-sync only helps for non-integer ratios (e.g., 25fps PAL), which is not our content.
 
 ### Hardware Decoding
 - `hwdec=auto-copy` is required (not zero-copy) because scripts need CPU-side frame access.

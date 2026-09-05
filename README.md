@@ -272,7 +272,7 @@ These are active when no GLSL shader handles the scaling step (unusual resolutio
 | `save-position-on-quit=yes` | Enabled | Resume from last position |
 | `save-watch-history=yes` | Enabled | Track watch history |
 | `autocreate-playlist=same` | Same directory | Auto-add files from same directory |
-| `video-sync=display-resample` | Display-resample | Display-sync for smoother motion (5:1 cadence for 24fps on 120Hz) |
+| `video-sync=audio` | Audio | Audio-driven sync — clean 5:1 cadence for 24fps on 120Hz |
 | `interpolation=no` | Disabled | Anime is intentionally 24fps — interpolation creates artifacts and loses aesthetic |
 | `swapchain-depth=4` | 4 | Extra presentation buffer headroom |
 | `hr-seek=absolute` | Absolute | Precise seeking |
