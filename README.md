@@ -154,7 +154,7 @@ cp -r script-opts/ ~/.config/mpv/
 cp -r fonts/ ~/.config/mpv/
 ```
 
-**Note:** You'll need to create your own `script-opts/jellyfin.conf` with your Jellyfin server details. See `script-opts/jellyfin.conf.example` for the format.
+**Note:** If you want to use `jellyfin.lua` (disabled by default — Jellyfin MPV Play handles this via IPC), create `script-opts/jellyfin.conf` with your server details. See `script-opts/jellyfin.conf.example` for the format.
 
 ## Related Projects
 
