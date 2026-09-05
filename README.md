@@ -56,6 +56,7 @@ This configuration is built around three priorities:
 
 | File | Status | Reason |
 |------|--------|--------|
+| `jellyfin.lua.disabled` | Disabled | Redundant with Jellyfin MPV Play (handles everything via IPC). Kept for standalone use. |
 | `autocrop.lua.disabled` | Disabled | Stock mpv script. Caused `p010`/`yuv420p10` pixel format toggling with `hwdec=auto-copy`, leading to GPU pipeline thrashing on 10-bit content. |
 | `modernx.lua.disabled` | Disabled | Previous OSC. Replaced by `trickplay-jf-osc.lua` for Jellyfin integration. Kept in case you want to switch back. |
 | `thumbfast-upstream.lua.bak` | Backup | Original upstream thumbfast before Jellyfin Trickplay modifications. Used to sync updates from upstream. |
