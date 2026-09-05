@@ -214,6 +214,8 @@ local function load_trickplay_async(server, item_id, api_key, info, scaled_w, sc
     if not out then mp.msg.warn("[thumbfast] Failed to create output file"); trickplay.loading = false; return end
 
     local frames_written = 0
+    local frame_size = scaled_w * scaled_h * 4  -- bytes per frame
+
     for i = 0, num_tiles - 1 do
         local jpg = download_trickplay_tile(server, item_id, api_key, info.width, i)
         if not jpg then
@@ -227,18 +229,41 @@ local function load_trickplay_async(server, item_id, api_key, info, scaled_w, sc
         os.remove(jpg)
 
         if r and r.status == 0 then
-            -- Read tile and append to final file
+            -- Read tile and extract individual frames
             local tile_file = io.open(tile_bgra, "rb")
             if tile_file then
-                local data = tile_file:read("*a")
+                local tile_data = tile_file:read("*a")
                 tile_file:close()
-                if data then
-                    out:write(data)
+
+                if tile_data then
+                    local tile_w = scaled_w * info.tiles_x
+                    local tile_h = scaled_h * info.tiles_y
+                    local tile_stride = tile_w * 4  -- bytes per row in tile
+
+                    -- Calculate how many frames in this tile
                     local tile_frames = tiles_per_image
                     if i == num_tiles - 1 then
                         tile_frames = info.thumbnail_count - (i * tiles_per_image)
                     end
-                    frames_written = frames_written + tile_frames
+
+                    -- Extract each frame from the grid
+                    for f = 0, tile_frames - 1 do
+                        local gx = f % info.tiles_x
+                        local gy = math.floor(f / info.tiles_x)
+
+                        -- Calculate position in tile data
+                        local frame_x = gx * scaled_w
+                        local frame_y = gy * scaled_h
+
+                        -- Extract frame row by row
+                        for row = 0, scaled_h - 1 do
+                            local src_offset = (frame_y + row) * tile_stride + frame_x * 4
+                            local row_data = tile_data:sub(src_offset + 1, src_offset + frame_size / scaled_h)
+                            out:write(row_data)
+                        end
+
+                        frames_written = frames_written + 1
+                    end
                 end
             end
         end
@@ -316,15 +341,14 @@ local function trickplay_thumb(time, x, y)
     local frame = math.floor(time / (trickplay.interval / 1000))
     if frame < 0 then frame = 0 end
     if frame >= trickplay.frames_written then frame = trickplay.frames_written - 1 end
-    local fit = frame % (trickplay.tiles_x * trickplay.tiles_y)
-    local gx = fit % trickplay.tiles_x
-    local gy = math.floor(fit / trickplay.tiles_x)
-    local iw = trickplay.scaled_w * trickplay.tiles_x
-    local off = (gy * trickplay.scaled_h * iw + gx * trickplay.scaled_w) * 4
+    -- Sequential layout: each frame is scaled_w * scaled_h * 4 bytes
+    local frame_size = trickplay.scaled_w * trickplay.scaled_h * 4
+    local off = frame * frame_size
+    local stride = trickplay.scaled_w * 4
     if frame ~= trickplay.last_frame or x ~= trickplay.last_x or y ~= trickplay.last_y then
         trickplay.last_frame = frame; trickplay.last_x = x; trickplay.last_y = y
         trickplay.is_shown = true
-        mp.commandv("overlay-add", options.overlay_id, x, y, trickplay.tile_file, off, "bgra", trickplay.scaled_w, trickplay.scaled_h, iw * 4)
+        mp.commandv("overlay-add", options.overlay_id, x, y, trickplay.tile_file, off, "bgra", trickplay.scaled_w, trickplay.scaled_h, stride)
     end
 end
 
