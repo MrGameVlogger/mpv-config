@@ -98,18 +98,6 @@ These shaders are applied automatically based on content resolution via conditio
 | **Sub-1080p** | height < 1080 | RAVU + CfL + SSimSuperRes | Same pipeline, RAVU handles larger upscale factor |
 | **HDR** | PQ/HLG gamma | bt.2446a tone mapping | Perceptual tone mapping for HDR content on SDR display |
 
-### Keybind-Only (Toggle Manually)
-
-These shaders are not in auto-profiles but can be toggled via keybinds.
-
-| Keybind | Cycles Between | Purpose |
-|---------|----------------|---------|
-| `Ctrl+g` | RAVU stack ↔ ArtCNN stack ↔ off | Switch upscaling strategy — RAVU for arbitrary ratios, ArtCNN for 2x. Third press turns off. |
-| `Ctrl+h` | SSimDownscaler stack ↔ off | Toggle downscaling for 4K content on 1080p display. Hit again to turn off and return to auto-profiles. |
-
-**Why adaptive-sharpen is only in manual stacks:**
-Auto-profiles don't include `adaptive-sharpen` because it adds extra GPU load. It's only added when you manually toggle `Ctrl+g` or `Ctrl+h` for when you want extra sharpening.
-
 ### Shader Details
 
 | Shader | Purpose | Why | Source |
