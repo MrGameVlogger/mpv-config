@@ -121,7 +121,157 @@ Auto-profiles don't include `adaptive-sharpen` because it adds extra GPU load. I
 | `SSimDownscaler.glsl` | High-quality downscaling | For watching 4K content on 1080p displays. Uses SSIM-based approach for sharper downscaling than bilinear. | Original [igv/SSimDownscaler](https://github.com/igv) repo gone, distributed through mpv community |
 | `adaptive-sharpen.glsl` | Adaptive sharpening | Post-resize sharpening that adapts to local content. Avoids over-sharpening flat areas while enhancing edges. Applied after upscaling. | [bacondither/Adaptive-sharpen](https://github.com/bacondither/Adaptive-sharpen) |
 
-## Key Files
+## Configuration Reference
+
+### Video Output
+
+| Option | Value | Why |
+|--------|-------|-----|
+| `vo=gpu-next` | libplacebo-based renderer | Modern rendering pipeline with better color management (default since mpv 0.41) |
+| `gpu-api=vulkan` | Vulkan backend | Required for gpu-next on macOS via MoltenVK |
+| `gpu-context=macvk` | macOS Vulkan context | macOS-specific Vulkan context |
+| `hwdec=auto-copy` | Hardware decoding | Auto-select best HW decoder, copy frames to CPU for script compatibility |
+| `hwdec-codecs=all` | All codecs | Enable hardware decoding for all codecs |
+| `hwdec-threads=4` | 4 threads | Dedicated threads for VideoToolbox copy-back path |
+| `vd-lavc-threads=0` | Auto | Auto-detect decoder thread count |
+| `vulkan-async-transfer=yes` | Async | Async texture uploads through MoltenVK |
+| `vulkan-async-compute=yes` | Async | Async compute shaders |
+| `profile=high-quality` | High quality | Sets ewa_lanczossharp scaling, sigmoid upscaling, etc. |
+| `video-latency-hacks=yes` | Enabled | Reduces latency (safe without display-sync) |
+
+### Deband
+
+| Option | Value | Why |
+|--------|-------|-----|
+| `deband=no` | Off by default | Toggle with `n` key at runtime |
+| `deband-iterations=4` | 4 passes | Higher = stronger but more GPU cost |
+| `deband-range=24` | 24 pixels | How far the filter samples |
+| `deband-grain=16` | 16 | Adds dynamic noise to mask residual banding |
+
+### Dithering
+
+| Option | Value | Why |
+|--------|-------|-----|
+| `dither-depth=auto` | Auto | Match display bit depth |
+| `temporal-dither=yes` | Enabled | Temporal dithering for smoother gradients |
+| `dither=fruit` | Fruit | Higher quality dithering algorithm |
+
+### Colorspace
+
+| Option | Value | Why |
+|--------|-------|-----|
+| `target-prim=auto` | Auto | Auto-detect display color primaries |
+| `target-trc=auto` | Auto | Auto-detect display transfer function |
+| `video-output-levels=full` | Full range | Full range output for accurate colors |
+
+### Fallback Scalers
+
+These are active when no GLSL shader handles the scaling step (unusual resolutions, non-4K displays, final RGB output pass):
+
+| Option | Value | Why |
+|--------|-------|-----|
+| `scale=ewa_lanczos` | Jinc | High quality polar luma upscale fallback |
+| `dscale=catmull_rom` | Catmull-Rom | Good quality luma downscale |
+| `correct-downscaling=yes` | Enabled | Proper windowed filter for large ratio downscaling |
+| `linear-downscaling=yes` | Enabled | Downscale in linear light (more correct for luminance blending) |
+| `sigmoid-upscaling=yes` | Enabled | Sigmoid curve during upscaling to reduce ringing |
+| `scale-antiring=0.6` | 0.6 | Anti-ringing on fallback scaler |
+
+### Audio
+
+| Option | Value | Why |
+|--------|-------|-----|
+| `ao=coreaudio` | CoreAudio | macOS audio output |
+| `volume-max=200` | 200% | Allow volume above 100% |
+
+### Subtitles
+
+| Option | Value | Why |
+|--------|-------|-----|
+| `embeddedfonts=yes` | Enabled | Use fonts embedded in video files |
+| `sub-fix-timing=no` | Disabled | Don't fix subtitle timing (default) |
+| `blend-subtitles=yes` | Enabled | CPU-side subtitle compositing (not GPU-heavy) |
+| `demuxer-mkv-subtitle-preroll=index` | Index | Improved subtitle preroll for MKV files |
+| `subs-with-matching-audio=no` | Disabled | Don't auto-select subs matching audio language |
+| `sub-gauss=1.0` | 1.0 | Slight subtitle blur for readability |
+| `sub-ass-override=no` | Disabled | Don't override ASS subtitle styling |
+| `sub-ass-style-overrides=...` | Custom | Affects non-ASS subs only (SRT, etc.) |
+| `sub-font="Gandhi Sans"` | Gandhi Sans | Custom subtitle font |
+| `sub-font-size=50` | 50 | Subtitle font size |
+| `sub-color="#FFFFFF"` | White | Subtitle color |
+| `sub-margin-y=40` | 40px | Subtitle vertical margin |
+| `sub-border-size=2.4` | 2.4 | Subtitle border size |
+| `sub-border-color="#FF000000"` | Black | Subtitle border color |
+| `sub-shadow-color="#A0000000"` | Semi-transparent black | Subtitle shadow color |
+| `sub-shadow-offset=0.75` | 0.75 | Subtitle shadow offset |
+| `sub-bold=yes` | Enabled | Bold subtitles |
+
+### Languages
+
+| Option | Value | Why |
+|--------|-------|-----|
+| `slang=enm,eng,en` | Middle English, English | Subtitle priority (enm catches honorifics in fansubs) |
+| `alang=ja,jp,jpn` | Japanese | Audio priority (Japanese first for anime) |
+
+### yt-dlp
+
+| Option | Value | Why |
+|--------|-------|-----|
+| `ytdl-format=...` | Custom | Prefer HEVC 4K → VP9 4K → AV1 1080p → best |
+| `ytdl-raw-options-append=external-downloader=aria2c` | aria2c | Faster downloads with aria2c |
+
+### Window
+
+| Option | Value | Why |
+|--------|-------|-----|
+| `fullscreen=yes` | Enabled | Start in fullscreen |
+| `geometry=50%:50%` | Center | Center window (unused when fullscreen) |
+| `autofit=100%` | 100% | Fill screen (unused when fullscreen) |
+| `window-maximized=no` | Disabled | Not maximized (unused when fullscreen) |
+| `osc=no` | Disabled | Disabled because jf-mpv-osc handles the OSC |
+| `border=no` | Disabled | Borderless window |
+| `no-hidpi-window-scale` | Enabled | Don't auto-scale on Retina |
+| `cursor-autohide=1000` | 1 second | Hide cursor after 1 second |
+
+### Cache
+
+| Option | Value | Why |
+|--------|-------|-----|
+| `cache=yes` | Enabled | Enable demuxer cache |
+| `cache-on-disk=no` | Disabled | Don't cache to disk |
+| `demuxer-max-bytes=8192M` | 8GB | Large cache for Jellyfin streaming over network |
+| `demuxer-max-back-bytes=2048M` | 2GB | Large rewinding buffer |
+| `demuxer-readahead-secs=90` | 90 seconds | Aggressive readahead for streaming |
+| `demuxer-hysteresis-secs=10` | 10 seconds | Cache hysteresis threshold |
+| `cache-pause=no` | Disabled | Don't pause when buffer is empty |
+
+### Playback
+
+| Option | Value | Why |
+|--------|-------|-----|
+| `keep-open=yes` | Enabled | Don't close window after playback ends |
+| `save-position-on-quit=yes` | Enabled | Resume from last position |
+| `save-watch-history=yes` | Enabled | Track watch history |
+| `autocreate-playlist=same` | Same directory | Auto-add files from same directory |
+| `video-sync=audio` | Audio | Audio-driven sync (display-sync broken on MoltenVK) |
+| `interpolation=no` | Disabled | Disabled (requires display-sync mode) |
+| `swapchain-depth=4` | 4 | Extra presentation buffer headroom |
+| `hr-seek=absolute` | Absolute | Precise seeking |
+
+### Screenshots
+
+| Option | Value | Why |
+|--------|-------|-----|
+| `screenshot-format=png` | PNG | PNG format for lossless screenshots |
+| `screenshot-dir="~/Pictures/mpv"` | ~/Pictures/mpv | Save location |
+| `screenshot-template="%F-%p-%n"` | Custom | Filename format |
+| `screenshot-high-bit-depth=yes` | Enabled | Preserve HDR color depth |
+
+### Logging
+
+| Option | Value | Why |
+|--------|-------|-----|
+| `log-file=~~/mpv.log` | mpv.log | Log file location (overwritten each session) |
 
 | File | Description |
 |------|-------------|
