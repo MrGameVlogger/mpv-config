@@ -102,11 +102,15 @@ These shaders are applied automatically based on content resolution via conditio
 
 These shaders are not in auto-profiles but can be toggled via keybinds:
 
-| Shader | Keybind | Purpose | Why |
-|--------|---------|---------|-----|
-| `ArtCNN_C4F16.glsl` | `Ctrl+g` | Replaces RAVU in the upscaling pipeline | Better for 2x upscaling (1080p→4K), less ringing than RAVU |
-| `SSimDownscaler.glsl` | `Ctrl+h` | High-quality downscaling | For watching 4K content on 1080p displays |
-| `adaptive-sharpen.glsl` | Included in keybind stacks | Post-resize sharpening that adapts to local content. Part of both `Ctrl+g` and `Ctrl+h` shader stacks. | [bacondither/Adaptive-sharpen](https://github.com/bacondither/Adaptive-sharpen) |
+| Keybind | Stack 1 | Stack 2 | Purpose |
+|---------|---------|---------|---------|
+| `Ctrl+g` | RAVU + CfL + SSimSuperRes + adaptive-sharpen | ArtCNN + CfL + SSimSuperRes + adaptive-sharpen | Switch upscaling strategy — RAVU for arbitrary ratios, ArtCNN for 2x |
+| `Ctrl+h` | SSimDownscaler + CfL + SSimSuperRes + adaptive-sharpen | *(empty)* | Toggle downscaling for 4K content on 1080p display |
+
+**How it works:**
+- `Ctrl+g` cycles between two upscaling stacks — both include CfL (chroma), SSimSuperRes (anti-ringing), and adaptive-sharpen. The only difference is the upscaler: RAVU or ArtCNN.
+- `Ctrl+h` toggles a downscaling stack on/off. When on, it replaces the auto-profile shaders with SSimDownscaler for 4K→1080p downscaling.
+- Both stacks include `adaptive-sharpen` for post-resize sharpening.
 
 ### Shader Details
 
