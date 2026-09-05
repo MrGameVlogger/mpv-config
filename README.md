@@ -100,19 +100,15 @@ These shaders are applied automatically based on content resolution via conditio
 
 ### Keybind-Only (Toggle Manually)
 
-These shaders are not in auto-profiles but can be toggled via keybinds. **Hit the key again to turn off** and return to auto-profile behavior.
+These shaders are not in auto-profiles but can be toggled via keybinds.
 
-| Keybind | When On | When Off | Purpose |
-|---------|---------|----------|---------|
-| `Ctrl+g` | RAVU + CfL + SSimSuperRes + adaptive-sharpen (or ArtCNN + CfL + SSimSuperRes + adaptive-sharpen) | Returns to auto-profile shaders | Switch upscaling strategy — RAVU for arbitrary ratios, ArtCNN for 2x |
-| `Ctrl+h` | SSimDownscaler + CfL + SSimSuperRes + adaptive-sharpen | Returns to auto-profile shaders | Toggle downscaling for 4K content on 1080p display |
+| Keybind | Cycles Between | Purpose |
+|---------|----------------|---------|
+| `Ctrl+g` | RAVU stack ↔ ArtCNN stack | Switch upscaling strategy — RAVU for arbitrary ratios, ArtCNN for 2x. Never turns off. |
+| `Ctrl+h` | SSimDownscaler stack ↔ off | Toggle downscaling for 4K content on 1080p display. Hit again to turn off and return to auto-profiles. |
 
 **Why adaptive-sharpen is only in manual stacks:**
 Auto-profiles don't include `adaptive-sharpen` because it adds extra GPU load. It's only added when you manually toggle `Ctrl+g` or `Ctrl+h` for when you want extra sharpening.
-
-**How cycling works:**
-- `Ctrl+g` cycles: RAVU stack → ArtCNN stack → RAVU stack → ...
-- `Ctrl+h` cycles: SSimDownscaler stack → off → SSimDownscaler stack → ...
 
 ### Shader Details
 
