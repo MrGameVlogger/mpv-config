@@ -1082,7 +1082,7 @@ local function thumb(time, r_x, r_y, script)
 
     if time == last_seek_time then return end
     last_seek_time = time
-    if not spawned then spawn(time) end
+    if not spawned and not trickplay.active then spawn(time) end
     request_seek()
     if not file_timer:is_enabled() then file_timer:resume() end
 end
@@ -1118,7 +1118,9 @@ local function watch_changes()
             run("quit")
             clear()
             spawned = false
-            spawn(seek_time or mp.get_property_number("time-pos", 0))
+            if not trickplay.active then
+                spawn(seek_time or mp.get_property_number("time-pos", 0))
+            end
             file_timer:resume()
         else
             if rotate ~= last_rotate then
@@ -1140,7 +1142,7 @@ local function watch_changes()
     last_crop = properties["video-crop"]
     last_has_vid = has_vid
 
-    if not spawned and not disabled and options.spawn_first and resized then
+    if not spawned and not disabled and not trickplay.active and options.spawn_first and resized then
         spawn(mp.get_property_number("time-pos", 0))
         file_timer:resume()
     end
