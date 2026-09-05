@@ -96,7 +96,7 @@ These shaders are applied automatically based on content resolution via conditio
 | **4K** | height >= 2160 | CfL + SSimSuperRes | No upscaling needed, just chroma improvement and anti-ringing |
 | **1080p-1440p** | 1080 <= height < 2160 | RAVU + CfL + SSimSuperRes | Full upscaling pipeline for most anime BDRips |
 | **Sub-1080p** | height < 1080 | RAVU + CfL + SSimSuperRes | Same pipeline, RAVU handles larger upscale factor |
-| **HDR** | PQ/HLG gamma | bt.2446a tone mapping | Perceptual tone mapping for HDR content on SDR display |
+| **HDR** | PQ/HLG gamma | bt.2446a tone mapping (fallback), target-peak=1600 (XDR display), HDR passthrough |
 
 ### Keybind Stacks (Toggle Manually)
 

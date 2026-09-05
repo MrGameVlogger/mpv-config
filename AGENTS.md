@@ -124,9 +124,9 @@
 
 #### [HDR]
 - Triggers when content has PQ or HLG gamma (HDR content).
-- Uses bt.2446a tone mapping, perceptual gamut mapping.
-- `target-peak=500` tuned for SDR display peak brightness.
-- `target-colorspace-hint=yes` for proper HDR passthrough on supported displays.
+- Uses bt.2446a tone mapping (fallback if display can't handle HDR natively).
+- `target-peak=1600` tuned for M2 Max XDR display peak brightness.
+- `target-colorspace-hint=yes` for HDR passthrough to display.
 
 #### [4K]
 - Triggers when height >= 2160.
