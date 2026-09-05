@@ -100,17 +100,19 @@ These shaders are applied automatically based on content resolution via conditio
 
 ### Keybind-Only (Toggle Manually)
 
-These shaders are not in auto-profiles but can be toggled via keybinds:
+These shaders are not in auto-profiles but can be toggled via keybinds. **Hit the key again to turn off** and return to auto-profile behavior.
 
-| Keybind | Stack 1 | Stack 2 | Purpose |
-|---------|---------|---------|---------|
-| `Ctrl+g` | RAVU + CfL + SSimSuperRes + adaptive-sharpen | ArtCNN + CfL + SSimSuperRes + adaptive-sharpen | Switch upscaling strategy — RAVU for arbitrary ratios, ArtCNN for 2x |
-| `Ctrl+h` | SSimDownscaler + CfL + SSimSuperRes + adaptive-sharpen | *(empty)* | Toggle downscaling for 4K content on 1080p display |
+| Keybind | When On | When Off | Purpose |
+|---------|---------|----------|---------|
+| `Ctrl+g` | RAVU + CfL + SSimSuperRes + adaptive-sharpen (or ArtCNN + CfL + SSimSuperRes + adaptive-sharpen) | Returns to auto-profile shaders | Switch upscaling strategy — RAVU for arbitrary ratios, ArtCNN for 2x |
+| `Ctrl+h` | SSimDownscaler + CfL + SSimSuperRes + adaptive-sharpen | Returns to auto-profile shaders | Toggle downscaling for 4K content on 1080p display |
 
-**How it works:**
-- `Ctrl+g` cycles between two upscaling stacks — both include CfL (chroma), SSimSuperRes (anti-ringing), and adaptive-sharpen. The only difference is the upscaler: RAVU or ArtCNN.
-- `Ctrl+h` toggles a downscaling stack on/off. When on, it replaces the auto-profile shaders with SSimDownscaler for 4K→1080p downscaling.
-- Both stacks include `adaptive-sharpen` for post-resize sharpening.
+**Why adaptive-sharpen is only in manual stacks:**
+Auto-profiles don't include `adaptive-sharpen` because it adds extra GPU load. It's only added when you manually toggle `Ctrl+g` or `Ctrl+h` for when you want extra sharpening.
+
+**How cycling works:**
+- `Ctrl+g` cycles: RAVU stack → ArtCNN stack → RAVU stack → ...
+- `Ctrl+h` cycles: SSimDownscaler stack → off → SSimDownscaler stack → ...
 
 ### Shader Details
 
