@@ -13,47 +13,87 @@ My personal [mpv](https://mpv.io/) configuration for macOS, optimized for anime 
 - **Display** — 3456x2234 Retina @ 120Hz
 - **OS** — macOS with MoltenVK for Vulkan support
 
+## Why This Setup
+
+This configuration is built around three priorities:
+
+1. **Anime-first** — Japanese audio with English subtitles, auto-selecting non-dub tracks
+2. **Jellyfin integration** — stream directly from my Jellyfin server with full playback control
+3. **High-quality rendering** — maximize the M2 Max GPU with shaders that make a visible difference
+
 ## Features
 
-- **gpu-next** with Vulkan rendering
-- **VideoToolbox** hardware decoding (auto-copy for script compatibility)
-- **High-quality shaders** — RAVU upscaling, CfL chroma prediction, SSimSuperRes
-- **Jellyfin integration** — stream directly from Jellyfin server
-- **Trickplay thumbnails** — instant seekbar previews from Jellyfin
-- **SponsorBlock** — auto-skip sponsors, intros, outros
-- **Custom OSC** — Jellyfin-styled interface (jf-mpv-osc)
-- **Auto-play** — loads adjacent files in directory
+### Video Rendering
+
+- **gpu-next** with Vulkan (via MoltenVK) — modern rendering pipeline with better color management
+- **VideoToolbox hardware decoding** — `auto-copy` mode for script compatibility (autocrop needs CPU-side frames)
+- **High-quality shaders** — RAVU upscaling, CfL chroma prediction, SSimSuperRes anti-ringing
+
+### Jellyfin Integration
+
+- **Direct streaming** — play from Jellyfin server via `jellyfin.lua`, no browser needed
+- **Trickplay thumbnails** — instant seekbar previews from Jellyfin's pre-generated tiles
+- **SponsorBlock** — auto-skip sponsors, intros, outros (via zydezu's fork)
+- **Custom OSC** — Jellyfin-styled interface with Material icons (jf-mpv-osc)
+
+### Playback
+
+- **Auto-play** — loads adjacent files in directory for binge-watching
+- **Episode navigation** — `>` / `<` keys for next/previous episode
+- **Deband toggle** — `n` key to toggle deband on/off (off by default, settings optimized for M2 Max)
+
+## Scripts
+
+| Script | Purpose | Why |
+|--------|---------|-----|
+| `trickplay-jf-osc.lua` | Jellyfin-styled OSC | Matches Jellyfin web UI, has skip intro button, works with Trickplay |
+| `thumbfast.lua` | Thumbnail generation | Modified with Jellyfin Trickplay support — fetches pre-generated tiles instead of decoding locally |
+| `jellyfin.lua` | Jellyfin playback integration | Streams from Jellyfin server, handles authentication and playback control |
+| `sponsorblock.lua` | SponsorBlock segment skipping | zydezu's fork integrates with ModernX OSC |
+| `trackselect.lua` | Auto-select non-dub tracks | Picks Japanese audio and English subs automatically for anime |
+
+## Shaders
+
+| Shader | Purpose | Why |
+|--------|---------|-----|
+| `ravu-zoom-ar-r3.hook` | Arbitrary ratio upscaling | Best for non-integer scales (720p→4K), handles any resolution |
+| `CfL_Prediction.glsl` | Chroma from luma prediction | Reconstructs chroma signal from luma — visible improvement on anime |
+| `SSimSuperRes.glsl` | Super-resolution enhancement | Reduces ringing from sharp scalers, 4 render passes |
+| `ArtCNN_C4F16.glsl` | Neural network upscaling (2x) | Best for 1080p→4K, superseded FSRCNNX with less ringing |
+| `SSimDownscaler.glsl` | High-quality downscaling | For 4K content on 1080p displays |
+| `adaptive-sharpen.glsl` | Adaptive sharpening | Post-resize sharpening that adapts to local content |
+
+### Shader Profiles
+
+Shaders are applied conditionally based on content resolution:
+
+| Profile | Condition | Shaders |
+|---------|-----------|---------|
+| **4K** | height >= 2160 | CfL + SSimSuperRes (no upscaling needed) |
+| **1080p-1440p** | 1080 <= height < 2160 | RAVU + CfL + SSimSuperRes |
+| **Sub-1080p** | height < 1080 | RAVU + CfL + SSimSuperRes |
+| **HDR** | PQ/HLG gamma | bt.2446a tone mapping |
 
 ## Key Files
 
 | File | Description |
 |------|-------------|
-| `mpv.conf` | Main configuration |
-| `input.conf` | Keybindings |
-| `scripts/` | Lua scripts |
-| `shaders/` | GLSL shaders |
-| `script-opts/` | Script configuration |
+| `mpv.conf` | Main configuration — video output, decoding, cache, subtitles |
+| `input.conf` | Keybindings — custom keys for shader toggle, deband, etc. |
+| `scripts/` | Lua scripts — OSC, thumbnails, Jellyfin, SponsorBlock |
+| `shaders/` | GLSL shaders — upscaling, chroma, anti-ringing, sharpening |
+| `script-opts/` | Script configuration — per-script settings |
+| `fonts/` | Custom fonts — Fluent System Icons for OSC |
 
-## Scripts
+## Keybindings
 
-| Script | Purpose | Source |
-|--------|---------|--------|
-| `trickplay-jf-osc.lua` | Jellyfin-styled OSC | [iwalton3/jf-mpv-osc](https://github.com/iwalton3/jf-mpv-osc) |
-| `thumbfast.lua` | Thumbnail generation (with Jellyfin Trickplay) | [MrGameVlogger/thumbfast-jellyfin](https://github.com/MrGameVlogger/thumbfast-jellyfin) |
-| `jellyfin.lua` | Jellyfin playback integration | [EmperorPenguin18/mpv-jellyfin](https://github.com/EmperorPenguin18/mpv-jellyfin) |
-| `sponsorblock.lua` | SponsorBlock segment skipping | [zydezu/mpvconfig](https://github.com/zydezu/mpvconfig/blob/main/scripts/sponsorblock.lua) |
-| `trackselect.lua` | Auto-select non-dub tracks | [po5/trackselect](https://github.com/po5/trackselect) |
-
-## Shaders
-
-| Shader | Purpose | Source |
-|--------|---------|--------|
-| `ravu-zoom-ar-r3.hook` | Arbitrary ratio upscaling | [bjin/mpv-prescalers](https://github.com/bjin/mpv-prescalers) |
-| `CfL_Prediction.glsl` | Chroma from luma prediction | [Artoriuz/glsl-chroma-from-luma-prediction](https://github.com/Artoriuz/glsl-chroma-from-luma-prediction) |
-| `SSimSuperRes.glsl` | Super-resolution enhancement | Original igv repo gone, distributed through mpv community |
-| `ArtCNN_C4F16.glsl` | Neural network upscaling (2x) | [Artoriuz/ArtCNN](https://github.com/Artoriuz/ArtCNN) |
-| `SSimDownscaler.glsl` | High-quality downscaling | Original igv repo gone, distributed through mpv community |
-| `adaptive-sharpen.glsl` | Adaptive sharpening | [bacondither/Adaptive-sharpen](https://github.com/bacondither/Adaptive-sharpen) |
+| Key | Action | Why |
+|-----|--------|-----|
+| `Ctrl+g` | Toggle RAVU ↔ ArtCNN | Switch upscaling strategy for different content |
+| `Ctrl+h` | Toggle SSimDownscaler | Enable when watching 4K on 1080p display |
+| `n` | Toggle deband | Off by default, toggle when banding is visible |
+| `k` | Toggle sub-ass-override | Switch between styled and plain subtitles |
+| `>` / `<` | Next/previous episode | Quick navigation during binge sessions |
 
 ## Installation
 
@@ -66,23 +106,16 @@ cp mpv.conf ~/.config/mpv/
 cp -r scripts/ ~/.config/mpv/
 cp -r shaders/ ~/.config/mpv/
 cp -r script-opts/ ~/.config/mpv/
+cp -r fonts/ ~/.config/mpv/
 ```
 
-## Keybindings
-
-| Key | Action |
-|-----|--------|
-| `Ctrl+g` | Toggle RAVU ↔ ArtCNN shader stack |
-| `Ctrl+h` | Toggle SSimDownscaler |
-| `n` | Toggle deband |
-| `k` | Toggle sub-ass-override |
-| `>` / `<` | Next/previous episode |
+**Note:** You'll need to create your own `script-opts/jellyfin.conf` with your Jellyfin server details. See `script-opts/jellyfin.conf.example` for the format.
 
 ## Related Projects
 
-- [Jellyfin MPV Play](https://github.com/MrGameVlogger/Jellyfin_mpv_play) — Jellyfin client for mpv
-- [thumbfast-jellyfin](https://github.com/MrGameVlogger/thumbfast-jellyfin) — Trickplay thumbnails
+- [Jellyfin MPV Play](https://github.com/MrGameVlogger/Jellyfin_mpv_play) — Jellyfin client that launches mpv from the web UI
+- [thumbfast-jellyfin](https://github.com/MrGameVlogger/thumbfast-jellyfin) — Modified thumbfast with Jellyfin Trickplay support
 
 ## License
 
-Configuration files are personal use. Scripts and shaders are subject to their respective licenses.
+Configuration files are personal use. Scripts and shaders are subject to their respective licenses (MPL-2.0, GPL-3.0, MIT, Apache-2.0 — see individual files).
