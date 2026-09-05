@@ -3,6 +3,7 @@
 [![mpv](https://img.shields.io/badge/mpv-v0.41.0-green.svg)](https://mpv.io/)
 [![Platform](https://img.shields.io/badge/platform-macOS-blue.svg)]()
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Last Commit](https://img.shields.io/github/last-commit/MrGameVlogger/mpv-config)](https://github.com/MrGameVlogger/mpv-config/commits/main)
 
 My personal [mpv](https://mpv.io/) configuration for macOS, optimized for anime and Japanese media playback on Apple Silicon.
 
