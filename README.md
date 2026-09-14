@@ -212,7 +212,7 @@ These are active when no GLSL shader handles the scaling step (unusual resolutio
 | `sub-ass-override=no` | Disabled | Don't override ASS subtitle styling |
 | `sub-ass-style-overrides=...` | Custom | Affects non-ASS subs only (SRT, etc.) |
 | `sub-filter-sdh=yes` | Enabled | Filter SDH subtitles (deaf/hard-of-hearing) |
-| `sub-filter-sdh-harder=yes` | Enabled | More aggressive SDH filtering |
+| `sub-filter-sdh-harder=yes` | Disabled | More aggressive SDH filtering (can remove actual dialogue) |
 | `sub-font="Gandhi Sans"` | Gandhi Sans | Custom subtitle font |
 | `sub-font-size=50` | 50 | Subtitle font size |
 | `sub-color="#FFFFFF"` | White | Subtitle color |
