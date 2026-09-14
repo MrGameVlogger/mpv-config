@@ -262,7 +262,7 @@ These are active when no GLSL shader handles the scaling step (unusual resolutio
 | `demuxer-max-back-bytes=2048M` | 2GB | Large rewinding buffer |
 | `demuxer-readahead-secs=90` | 90 seconds | Aggressive readahead for streaming |
 | `demuxer-hysteresis-secs=10` | 10 seconds | Cache hysteresis threshold |
-| `cache-pause=no` | Disabled | Don't pause when buffer is empty |
+| `cache-pause=yes` | Enabled | Pause when buffer is empty (prevents playback issues during streaming) |
 
 ### Playback
 

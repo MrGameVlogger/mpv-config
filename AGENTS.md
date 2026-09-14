@@ -68,7 +68,7 @@
 - `demuxer-max-back-bytes=2048M` — allows large rewinding buffer.
 - `demuxer-readahead-secs=90` — aggressive readahead for streaming.
 - `demuxer-hysteresis-secs=10` — cache hysteresis threshold.
-- `cache-pause=no` — don't pause when buffer is empty.
+- `cache-pause=yes` — pause when buffer is empty (prevents playback issues during streaming).
 
 ### Playback
 - `video-sync=audio` — audio-driven sync (display-sync broken on MoltenVK).
