@@ -148,7 +148,7 @@ end
 local function extract_jellyfin_info(path)
     local server = path:match("^(https?://[^/]+/[^/]+)") or path:match("^(https?://[^/]+)")
     local item_id = path:match("/Videos/([a-f0-9]+)/stream")
-    local api_key = path:match("api_key=([^&]+)")
+    local api_key = path:match("ApiKey=([^&]+)") or path:match("api_key=([^&]+)")
     if server and item_id and api_key then return server, item_id, api_key end
     return nil, nil, nil
 end
