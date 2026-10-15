@@ -3,13 +3,15 @@
 ## System
 - macOS, Apple M2 Max (Mac14,6), 3456x2234 Retina display @ 120Hz
 - 12-core (8 Performance + 4 Efficiency), 64 GB RAM
-- mpv via Homebrew (currently v0.41.0_9), Vulkan rendering through MoltenVK
-- FFmpeg 9.0.1, libplacebo v7.360.1, MoltenVK 1.4.2
-- Primary media source: Jellyfin server via jellyfin.lua script
+- mpv via Homebrew (currently v0.41.0_10), Vulkan rendering through MoltenVK
+- FFmpeg 9.0.2, libplacebo v7.360.1, MoltenVK 1.4.2
+- Primary media source: Jellyfin server via Jellyfin MPV Play (the shim spawns
+  mpv and talks to jf-mpv-osc over script messages). jellyfin.lua is disabled.
 
 ## Backup
 - Private GitHub repository: https://github.com/MrGameVlogger/mpv-config
-- Excludes: `.DS_Store`, `mpv.log`, `watch_later/`, `watch_history.jsonl`
+- Excludes (see .gitignore): `.DS_Store`, `mpv.log`, `watch_later/`,
+  `watch_history.jsonl`, `script-opts/jellyfin.conf`, `sponsorblock.txt`
 
 ## Configuration Philosophy
 - Do NOT remove or change settings without asking, even if they appear unused.
@@ -79,12 +81,14 @@
 - `save-watch-history=yes` — track watch history.
 - `autocreate-playlist=same` — auto-add files from same directory.
 - `swapchain-depth=4` — extra presentation buffer headroom.
+- `reset-on-next-file=audio-delay,mute,pause,speed,sub-delay` — reset these between files.
 
 ### Screenshots
 - `screenshot-format=png` — PNG format for lossless screenshots.
 - `screenshot-dir="~/Pictures/mpv"` — save location.
 - `screenshot-template="%F-%p-%n"` — filename format.
 - `screenshot-high-bit-depth=yes` — preserve HDR color depth.
+- `screenshot-tag-colorspace=yes` — tag colorspace in screenshots.
 
 ### Logging
 - `log-file=~~/mpv.log` — log file location (overwritten each session).
@@ -98,6 +102,8 @@
 - `geometry=50%:50%` — center window (unused when fullscreen).
 - `autofit=100%` — fill screen (unused when fullscreen).
 - `window-maximized=no` — not maximized (unused when fullscreen).
+- `force-window=immediate` — open the window immediately on launch.
+- `macos-fs-animation-duration=0` — disable the macOS fullscreen animation.
 
 ### Subtitles
 - `blend-subtitles=yes` — CPU-side subtitle compositing (not `=video` which is GPU-heavy).
@@ -106,7 +112,7 @@
 - `sub-ass-style-overrides=playresx=1920,playresy=1080,Kerning=yes` — affects non-ASS subs only.
 - `subs-with-matching-audio=no` — don't auto-select subs matching audio language.
 - `demuxer-mkv-subtitle-preroll=index` — improved subtitle preroll for MKV files.
-- Custom subtitle styling with Gandhi Sans font, red border, shadow.
+- Custom subtitle styling with Gandhi Sans font, black border, shadow.
   - `sub-font="Gandhi Sans"`, `sub-font-size=50`, `sub-color="#FFFFFF"`
   - `sub-margin-y=40`, `sub-border-size=2.4`, `sub-border-color="#FF000000"`
   - `sub-shadow-color="#A0000000"`, `sub-shadow-offset=0.75`, `sub-bold=yes`
@@ -147,10 +153,17 @@
 
 ### trickplay-jf-osc.lua
 - Jellyfin-styled OSC with built-in Trickplay support.
-- Repo: https://github.com/iwalton3/jf-mpv-osc
+- Upstream: https://github.com/iwalton3/jf-mpv-osc
 - Replaces ModernX as the active OSC.
 - Works with thumbfast for seekbar thumbnails.
 - `osc=no` in mpv.conf disables the built-in OSC (this script replaces it).
+- Local modifications (this repo is the maintained copy):
+  - Action-sheet menus for subtitle/audio/settings selection backed by the
+    shim (`shim-jf-osc-state` / `shim-jf-osc-action` script messages), with
+    mpv-local fallbacks so every control also works on plain-mpv playback
+    (local files): back/close quit mpv, Screenshot, a local
+    "Quit Without Saving Position" item, and local subtitle style menus.
+  - SyncPlay button, favorite button, skip-intro button, queue prev/next.
 
 ### modernx.lua (v0.4.7) (DISABLED)
 - On-screen controller replacement by zydezu.
@@ -159,12 +172,12 @@
 - Config: script-opts/modernx.conf
 - Re-enable by renaming back to modernx.lua and disabling trickplay-jf-osc.lua.
 
-### jellyfin.lua
+### jellyfin.lua (DISABLED)
 - Jellyfin playback integration by EmperorPenguin18.
 - Repo: https://github.com/EmperorPenguin18/mpv-jellyfin
-- Launches mpv in idle mode, receives play commands via WebSocket.
-- Handles playlist management, position reporting, episode navigation.
-- Config: script-opts/jellyfin.conf
+- Disabled by renaming to jellyfin.lua.disabled — Jellyfin MPV Play handles
+  playback via IPC now. Kept for standalone use without the macOS app.
+- Config: script-opts/jellyfin.conf.example (copy to jellyfin.conf to use)
 
 ### sponsorblock.lua
 - SponsorBlock segment skipping, zydezu's fork for modernx integration.
@@ -180,8 +193,9 @@
 - Local modifications:
   - Increased subprocess cache (`--demuxer-readahead-secs=600`, `--demuxer-max-bytes=2048MiB`) for better Jellyfin streaming performance.
   - Jellyfin Trickplay support merged in — fetches server-side thumbnails for Jellyfin streams instead of spawning subprocess.
-  - Requires `curl` and `ffmpeg` (at `/opt/homebrew/bin/ffmpeg`) for Trickplay.
-  - Upstream backup: `thumbfast-upstream.lua` (verified exact copy from GitHub).
+  - Requires `curl` (system default at `/usr/bin/curl`) and `ffmpeg` in PATH
+    (auto-detected at startup — Homebrew or system) for Trickplay.
+  - Upstream backup: `thumbfast-upstream.lua.bak` (verified exact copy from GitHub).
   - Standalone release: https://github.com/MrGameVlogger/thumbfast-jellyfin
 
 ### trackselect.lua
@@ -250,12 +264,13 @@ All shaders are in the `shaders/` directory and applied via conditional profiles
 
 ## Version History
 - 2025-12-21: mpv 0.41.0 released (gpu-next now default, Vulkan hwdec preferred)
-- 2026-03-18: mpv 0.41.0_4 — ffmpeg 8.1 revision bump
 - 2026-02-12: mpv 0.41.0_2 — libplacebo 7.360.0 revision bump
+- 2026-03-18: mpv 0.41.0_4 — ffmpeg 8.1 revision bump
 - 2026-07-20: mpv 0.41.0_6 — enabled pipewire
 - 2026-07-29: mpv 0.41.0_7 — libbluray 1.5.0 revision bump
 - 2026-08-11: mpv 0.41.0_8 — ffmpeg 9.0 revision bump (caused frame drops due to MoltenVK display timing)
 - 2026-08-31: mpv 0.41.0_9 — ffmpeg 9.0.1 bugfix, Vapoursynth 74+ backport
+- 2026-09-22: mpv 0.41.0_10 — ffmpeg 9.0.2 revision bump (currently installed)
 
 ## Credits & Inspiration
 - classicjazz/mpv-config — macOS mpv configuration guide with shader recommendations

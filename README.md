@@ -62,7 +62,7 @@ The shaders are applied via conditional profiles, so 4K content doesn't get unne
 
 ### Playback
 
-- **SponsorBlock** — auto-skip sponsors, intros, outros via [zydezu's fork](https://github.com/zydezu/mpvconfig/blob/main/scripts/sponsorblock.lua). Works with any OSC (core skipping is independent of ModernX).
+- **SponsorBlock** — auto-skip sponsors, outros, self-promos and interaction reminders via [zydezu's fork](https://github.com/zydezu/mpvconfig/blob/main/scripts/sponsorblock.lua). `skip_categories` in script-opts/sponsorblock.conf decides what is skipped (currently sponsor, outro, selfpromo, interaction — intros are detected but not auto-skipped, the Jellyfin shim handles those). Works with any OSC (core skipping is independent of ModernX).
 - **Auto-play** — loads adjacent files in directory for binge-watching (`autocreate-playlist=same`)
 - **Episode navigation** — `>` / `<` keys for next/previous episode
 - **Deband toggle** — `n` key to toggle deband on/off (off by default, settings optimized for M2 Max)
@@ -177,6 +177,13 @@ Applied automatically based on content type:
 | **HD BT.709** | bt.709 primaries | target-prim=bt.709, target-trc=bt.1886 |
 | **SDR UHD BT.2020** | bt.2020 primaries, SDR | target-prim=bt.709, gamut-mapping-mode=absolute |
 | **HDR** | PQ/HLG gamma | bt.2446a tone mapping, target-peak=1600, HDR passthrough |
+
+### Other Auto-Profiles
+
+| Profile | Condition | Settings |
+|---------|-----------|----------|
+| **Interlaced** | interlaced video frames | `deinterlace=yes` (BWDIF motion-adaptive) — older anime / DVDs |
+| **HTTP/HTTPS/yt-dlp** | protocol profiles | `hls-bitrate=max` (best HLS variant), `cache=yes` |
 
 ### Fallback Scalers
 
