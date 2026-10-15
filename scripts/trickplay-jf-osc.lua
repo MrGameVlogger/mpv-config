@@ -151,6 +151,18 @@ local function jf_action(...)
     mp.commandv("script-message", "shim-jf-osc-action", ...)
 end
 
+-- Close the player from the OSC's back arrow / window close button. Quits
+-- locally so it also works without the shim (local files, plain mpv) and
+-- tells the shim when one is attached so it can log the request. Usable from
+-- key bindings or the Python side, like shim-jf-osc-menu.
+local function jf_close()
+    if shim_state then
+        mp.commandv("script-message", "shim-close")
+    end
+    mp.commandv("quit")
+end
+mp.register_script_message("shim-jf-osc-close", jf_close)
+
 -- Toggle fullscreen locally (so it still works without the shim, e.g.
 -- the osc-test harness) and tell the shim the new state. Without the
 -- notice the shim keeps thinking auto-fullscreen is still wanted and
@@ -1634,7 +1646,7 @@ function window_controls(topbar)
     ne.eventresponder["mbtn_left_up"] =
         function ()
             msg.info("close button clicked")
-            mp.commandv("script-message", "shim-close")
+            jf_close()
         end
     lo = add_layout("close")
     lo.geometry = alignment == "left" and first_geo or third_geo
@@ -2867,6 +2879,108 @@ local function jf_audio_sheet()
     return jf_stream_items("audio", "set-audio", "audio", false)
 end
 
+-- Local (plain-mpv) subtitle style items, used when the shim's sub_style
+-- state is unavailable. Operate on mpv's own sub-scale/sub-pos/sub-color.
+-- ASS scripts render as authored on this setup (sub-ass-override=no), so
+-- these visibly affect text subtitles only — the same as mpv's own r/R,
+-- sub-color and sub-scale semantics.
+local function jf_local_sub_style_items()
+    local function scale_pct()
+        return math.floor(mp.get_property_number("sub-scale", 1) * 100 + 0.5)
+    end
+    local function pos_label()
+        local v = mp.get_property_number("sub-pos", 100)
+        if v == 0 then return tr("top", "Top") end
+        if v == 50 then return tr("middle", "Middle") end
+        if v == 100 then return tr("bottom", "Bottom") end
+        return string.format("%d%%", math.floor(v + 0.5))
+    end
+    -- mpv reports sub-color as #AARRGGBB; the menu speaks #RRGGBB
+    local function color_rgb()
+        local hex = mp.get_property("sub-color", "#FFFFFFFF"):upper()
+        local digits = hex:match("^#(%x+)$") or "FFFFFFFF"
+        if #digits == 8 then digits = digits:sub(3) end
+        return "#" .. digits
+    end
+    local function color_label()
+        local rgb = color_rgb()
+        local names = {
+            ["#FFFFFF"] = tr("white", "White"),
+            ["#FFFF00"] = tr("yellow", "Yellow"),
+            ["#00FF00"] = tr("green", "Green"),
+            ["#00FFFF"] = tr("cyan", "Cyan"),
+            ["#FF0000"] = tr("red", "Red"),
+        }
+        return names[rgb] or rgb
+    end
+    local size_opts = {
+        {v = 0.5,  label = tr("tiny", "Tiny")},
+        {v = 0.75, label = tr("small", "Small")},
+        {v = 1,    label = tr("normal", "Normal")},
+        {v = 1.25, label = tr("large", "Large")},
+        {v = 1.5,  label = tr("huge", "Huge")},
+    }
+    local pos_opts = {
+        {v = 0,   label = tr("top", "Top")},
+        {v = 50,  label = tr("middle", "Middle")},
+        {v = 100, label = tr("bottom", "Bottom")},
+    }
+    local color_opts = {
+        {v = "#FFFFFF", label = tr("white", "White")},
+        {v = "#FFFF00", label = tr("yellow", "Yellow")},
+        {v = "#00FF00", label = tr("green", "Green")},
+        {v = "#00FFFF", label = tr("cyan", "Cyan")},
+        {v = "#FF0000", label = tr("red", "Red")},
+    }
+    local function size_items()
+        local cur = scale_pct()
+        local out = {}
+        for _, o in ipairs(size_opts) do
+            local v = o.v
+            table.insert(out, {
+                label = o.label,
+                selected = cur == math.floor(v * 100 + 0.5),
+                action = function() mp.commandv("set", "sub-scale", v) end,
+            })
+        end
+        return out
+    end
+    local function pos_items()
+        local cur = mp.get_property_number("sub-pos", 100)
+        local out = {}
+        for _, o in ipairs(pos_opts) do
+            local v = o.v
+            table.insert(out, {
+                label = o.label,
+                selected = cur == v,
+                action = function() mp.commandv("set", "sub-pos", v) end,
+            })
+        end
+        return out
+    end
+    local function color_items()
+        local cur = color_rgb()
+        local out = {}
+        for _, o in ipairs(color_opts) do
+            local v = o.v
+            table.insert(out, {
+                label = o.label,
+                selected = cur == v,
+                action = function() mp.commandv("set", "sub-color", v) end,
+            })
+        end
+        return out
+    end
+    return {
+        {label = tr("sub_size", "Subtitle Size"), aside = scale_pct() .. "%",
+         submenu = size_items},
+        {label = tr("sub_position", "Subtitle Position"), aside = pos_label(),
+         submenu = pos_items},
+        {label = tr("sub_color", "Subtitle Color"), aside = color_label(),
+         submenu = color_items},
+    }
+end
+
 local function jf_sub_sheet()
     local items = jf_stream_items("subtitles", "set-sub", "sub", true)
     if shim_state and shim_state.sub_style then
@@ -2887,6 +3001,10 @@ local function jf_sub_sheet()
                                                 grp.verb),
                 })
             end
+        end
+    else
+        for _, item in ipairs(jf_local_sub_style_items()) do
+            table.insert(items, item)
         end
     end
     return items
@@ -2996,16 +3114,32 @@ local function jf_settings_sheet()
             mp.commandv("script-binding", "stats/display-stats-toggle")
         end,
     })
-    if st and st.allow_screenshot then
+    if (st and st.allow_screenshot) or not st then
         table.insert(items, {
             label = tr("screenshot", "Screenshot"),
-            action = function() jf_action("screenshot") end,
+            action = function()
+                if st then jf_action("screenshot")
+                else mp.commandv("screenshot") end
+            end,
         })
     end
     if st and st.has_media then
+        -- Jellyfin playback: quit, mark the item unwatched and leave no
+        -- resume position (the shim handles the server-side reset).
         table.insert(items, {
             label = tr("unwatched", "Quit and Mark Unwatched"),
             action = function() jf_action("unwatched-quit") end,
+        })
+    elseif not st then
+        -- plain-mpv playback: same promise, local mechanics — quit without
+        -- writing mpv's watch-later resume and drop the one already saved.
+        table.insert(items, {
+            label = tr("quit_nosave", "Quit Without Saving Position"),
+            action = function()
+                mp.commandv("set", "save-position-on-quit", "no")
+                mp.commandv("delete-watch-later-config")
+                mp.commandv("quit")
+            end,
         })
     end
     return items
@@ -3529,7 +3663,7 @@ function osc_init()
     ne = new_element("jf_back", "button")
     ne.icon = "arrow_back"
     ne.eventresponder["mbtn_left_up"] = function ()
-        mp.commandv("script-message", "shim-close")
+        jf_close()
     end
 
     ne = new_element("jf_syncplay", "button")
