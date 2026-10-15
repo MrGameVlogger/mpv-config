@@ -29,7 +29,7 @@ Most anime is in Japanese with English subtitles, but many releases include dub 
 
 I watch everything through Jellyfin, so the setup is optimized for streaming:
 
-- **[Jellyfin MPV Play](https://github.com/MrGameVlogger/Jellyfin_mpv_play)** launches mpv from the Jellyfin web UI — no need to copy URLs or use a browser
+- **[Jellyfin MPV Play](https://github.com/MrGameVlogger/jellyfin-mpv-play)** launches mpv from the Jellyfin web UI — no need to copy URLs or use a browser
 - **[thumbfast-jellyfin](https://github.com/MrGameVlogger/thumbfast-jellyfin)** fetches pre-generated Trickplay thumbnails from the server instead of decoding video locally — instant seekbar previews with zero CPU overhead
 - **[jf-mpv-osc](https://github.com/iwalton3/jf-mpv-osc)** provides a Jellyfin-styled OSC with skip intro button, action sheets for subtitle/audio selection, and queue navigation
 - **Large cache** (`demuxer-max-bytes=8192M`) buffers aggressively for smooth streaming over network
@@ -56,7 +56,7 @@ The shaders are applied via conditional profiles, so 4K content doesn't get unne
 
 ### Jellyfin Integration
 
-- **Direct streaming** — play from Jellyfin server via [Jellyfin MPV Play](https://github.com/MrGameVlogger/Jellyfin_mpv_play), no browser needed
+- **Direct streaming** — play from Jellyfin server via [Jellyfin MPV Play](https://github.com/MrGameVlogger/jellyfin-mpv-play), no browser needed
 - **Trickplay thumbnails** — instant seekbar previews from Jellyfin's pre-generated tiles via [thumbfast-jellyfin](https://github.com/MrGameVlogger/thumbfast-jellyfin)
 - **Custom OSC** — Jellyfin-styled interface with Material icons via [jf-mpv-osc](https://github.com/iwalton3/jf-mpv-osc)
 
@@ -80,7 +80,7 @@ The shaders are applied via conditional profiles, so 4K content doesn't get unne
 
 | File | Status | Reason | Source |
 |------|--------|--------|--------|
-| `jellyfin.lua.disabled` | Disabled | Was the original Jellyfin client script. Now redundant with [Jellyfin MPV Play](https://github.com/MrGameVlogger/Jellyfin_mpv_play) which handles everything via IPC. Kept for standalone use without the macOS app. | [EmperorPenguin18/mpv-jellyfin](https://github.com/EmperorPenguin18/mpv-jellyfin) |
+| `jellyfin.lua.disabled` | Disabled | Was the original Jellyfin client script. Now redundant with [Jellyfin MPV Play](https://github.com/MrGameVlogger/jellyfin-mpv-play) which handles everything via IPC. Kept for standalone use without the macOS app. | [EmperorPenguin18/mpv-jellyfin](https://github.com/EmperorPenguin18/mpv-jellyfin) |
 | `autocrop.lua.disabled` | Disabled | Stock mpv script for automatic black bar detection. Didn't like the behavior — kept trying to crop when I didn't want it to. | mpv built-in |
 | `modernx.lua.disabled` | Disabled | Was the previous OSC. Replaced by `trickplay-jf-osc.lua` which has native Jellyfin integration. Kept in case you want to switch back to the modern mpv style. | [zydezu/ModernX](https://github.com/zydezu/ModernX) |
 | `thumbfast-upstream.lua.bak` | Backup | Original upstream [thumbfast](https://github.com/po5/thumbfast) before [Jellyfin Trickplay modifications](https://github.com/MrGameVlogger/thumbfast-jellyfin). Used to sync updates from upstream. | [po5/thumbfast](https://github.com/po5/thumbfast) |
@@ -338,7 +338,7 @@ cp -r fonts/ ~/.config/mpv/
 
 ## Related Projects
 
-- [Jellyfin MPV Play](https://github.com/MrGameVlogger/Jellyfin_mpv_play) — Jellyfin client that launches mpv from the web UI
+- [Jellyfin MPV Play](https://github.com/MrGameVlogger/jellyfin-mpv-play) — Jellyfin client that launches mpv from the web UI
 - [thumbfast-jellyfin](https://github.com/MrGameVlogger/thumbfast-jellyfin) — Modified thumbfast with Jellyfin Trickplay support
 
 ## Credits & Inspiration
