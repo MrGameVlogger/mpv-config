@@ -95,7 +95,7 @@
 
 ### Window
 - `fullscreen=yes` — starts in fullscreen.
-- `osc=no` — disabled because modernx.lua handles the OSC.
+- `osc=no` — disabled because trickplay-jf-osc.lua handles the OSC.
 - `border=no` — borderless window.
 - `no-hidpi-window-scale` — don't auto-scale on Retina.
 - `cursor-autohide=1000` — hide cursor after 1 second.
@@ -109,7 +109,7 @@
 - `blend-subtitles=yes` — CPU-side subtitle compositing (not `=video` which is GPU-heavy).
 - `sub-gauss=1.0` — slight subtitle blur for readability.
 - `sub-ass-override=no` — don't override ASS subtitle styling.
-- `sub-ass-style-overrides=playresx=1920,playresy=1080,Kerning=yes` — affects non-ASS subs only.
+- `sub-ass-style-overrides=playresx=1920,playresy=1080,Kerning=yes` — tweaks non-ASS subs (SRT etc.: PlayRes mapping + kerning). Only active while `sub-ass-override` is raised (the `k` keybind); with `sub-ass-override=no` the line is quiet and ASS renders exactly as authored.
 - `subs-with-matching-audio=no` — don't auto-select subs matching audio language.
 - `demuxer-mkv-subtitle-preroll=index` — improved subtitle preroll for MKV files.
 - Custom subtitle styling with Gandhi Sans font, black border, shadow.

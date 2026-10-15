@@ -212,14 +212,14 @@ These are active when no GLSL shader handles the scaling step (unusual resolutio
 |--------|-------|-----|
 | `embeddedfonts=yes` | Enabled | Use fonts embedded in video files |
 | `sub-fix-timing=no` | Disabled | Don't fix subtitle timing (default) |
-| `blend-subtitles=yes` | Enabled | CPU-side subtitle compositing (not GPU-heavy) |
+| `blend-subtitles=yes` | Enabled | Blend subs onto the video frame before scaling (=video would do it on the GPU instead) |
 | `demuxer-mkv-subtitle-preroll=index` | Index | Improved subtitle preroll for MKV files |
 | `subs-with-matching-audio=no` | Disabled | Don't auto-select subs matching audio language |
 | `sub-gauss=1.0` | 1.0 | Slight subtitle blur for readability |
 | `sub-ass-override=no` | Disabled | Don't override ASS subtitle styling |
-| `sub-ass-style-overrides=...` | Custom | Affects non-ASS subs only (SRT, etc.) |
+| `sub-ass-style-overrides=...` | Custom | Tweaks non-ASS subs (SRT etc.): PlayRes mapping + kerning. Only active while `sub-ass-override` is raised (the `k` keybind) — while `sub-ass-override=no` (the default) the line is quiet and ASS renders exactly as authored |
 | `sub-filter-sdh=yes` | Enabled | Filter SDH subtitles (deaf/hard-of-hearing) |
-| `sub-filter-sdh-harder=yes` | Disabled | More aggressive SDH filtering (can remove actual dialogue) |
+| `#sub-filter-sdh-harder=yes` | Off (commented out) | More aggressive SDH filtering — not enabled because it can remove actual dialogue |
 | `sub-font="Gandhi Sans"` | Gandhi Sans | Custom subtitle font |
 | `sub-font-size=50` | 50 | Subtitle font size |
 | `sub-color="#FFFFFF"` | White | Subtitle color |
