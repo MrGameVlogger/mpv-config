@@ -109,7 +109,7 @@
 - `blend-subtitles=yes` — CPU-side subtitle compositing (not `=video` which is GPU-heavy).
 - `sub-gauss=1.0` — slight subtitle blur for readability.
 - `sub-ass-override=no` — don't override ASS subtitle styling.
-- `sub-ass-style-overrides=playresx=1920,playresy=1080,Kerning=yes` — tweaks non-ASS subs (SRT etc.: PlayRes mapping + kerning). Only active while `sub-ass-override` is raised (the `k` keybind); with `sub-ass-override=no` the line is quiet and ASS renders exactly as authored.
+- `sub-ass-style-overrides=playresx=1920,playresy=1080,Kerning=yes` — affects non-ASS subs only (SRT, etc.). Never applied to ASS subtitles.
 - `subs-with-matching-audio=no` — don't auto-select subs matching audio language.
 - `demuxer-mkv-subtitle-preroll=index` — improved subtitle preroll for MKV files.
 - Custom subtitle styling with Gandhi Sans font, black border, shadow.
