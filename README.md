@@ -217,7 +217,7 @@ These are active when no GLSL shader handles the scaling step (unusual resolutio
 | `subs-with-matching-audio=no` | Disabled | Don't auto-select subs matching audio language |
 | `sub-gauss=1.0` | 1.0 | Slight subtitle blur for readability |
 | `sub-ass-override=no` | Disabled | Don't override ASS subtitle styling |
-| `sub-ass-style-overrides=...` | Custom | Tweaks non-ASS subs (SRT etc.): PlayRes mapping + kerning. Only active while `sub-ass-override` is raised (the `k` keybind) — while `sub-ass-override=no` (the default) the line is quiet and ASS renders exactly as authored |
+| `sub-ass-style-overrides=...` | Custom | Affects non-ASS subs only (SRT, etc.) — PlayRes mapping and kerning. Never applied to ASS subtitles |
 | `sub-filter-sdh=yes` | Enabled | Filter SDH subtitles (deaf/hard-of-hearing) |
 | `#sub-filter-sdh-harder=yes` | Off (commented out) | More aggressive SDH filtering — not enabled because it can remove actual dialogue |
 | `sub-font="Gandhi Sans"` | Gandhi Sans | Custom subtitle font |
