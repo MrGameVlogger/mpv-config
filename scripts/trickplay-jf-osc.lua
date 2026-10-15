@@ -2879,11 +2879,11 @@ local function jf_audio_sheet()
     return jf_stream_items("audio", "set-audio", "audio", false)
 end
 
--- Local (plain-mpv) subtitle style items, used when the shim's sub_style
--- state is unavailable. Operate on mpv's own sub-scale/sub-pos/sub-color.
--- ASS scripts render as authored on this setup (sub-ass-override=no), so
--- these visibly affect text subtitles only — the same as mpv's own r/R,
--- sub-color and sub-scale semantics.
+-- Local (plain-mpv) subtitle style items, used when the host's sub_style
+-- state is unavailable. Operate on mpv's own sub-scale/sub-pos/sub-color,
+-- the same as mpv's own r/R and sub-color keys: plain text subtitles move
+-- and recolor, ASS/SSA scripts keep their own styling unless the user's
+-- mpv.conf raises sub-ass-override.
 local function jf_local_sub_style_items()
     local function scale_pct()
         return math.floor(mp.get_property_number("sub-scale", 1) * 100 + 0.5)

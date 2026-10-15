@@ -153,17 +153,17 @@
 
 ### trickplay-jf-osc.lua
 - Jellyfin-styled OSC with built-in Trickplay support.
-- Upstream: https://github.com/iwalton3/jf-mpv-osc
+- Maintained at https://github.com/MrGameVlogger/jf-mpv-osc (originally from
+  https://github.com/iwalton3/jf-mpv-osc). Vendored here byte-identical —
+  keep the two copies in sync.
 - Replaces ModernX as the active OSC.
 - Works with thumbfast for seekbar thumbnails.
 - `osc=no` in mpv.conf disables the built-in OSC (this script replaces it).
-- Local modifications (this repo is the maintained copy):
-  - Action-sheet menus for subtitle/audio/settings selection backed by the
-    shim (`shim-jf-osc-state` / `shim-jf-osc-action` script messages), with
-    mpv-local fallbacks so every control also works on plain-mpv playback
-    (local files): back/close quit mpv, Screenshot, a local
-    "Quit Without Saving Position" item, and local subtitle style menus.
-  - SyncPlay button, favorite button, skip-intro button, queue prev/next.
+- With the shim it provides action sheets (subtitle/audio/settings), queue
+  prev/next, favorite, skip-intro and SyncPlay; every control also works on
+  plain-mpv playback (local files) via its hostless fallbacks — back/close
+  quit mpv, Screenshot and "Quit Without Saving Position" act locally, and
+  the subtitle style rows edit mpv's sub-scale/sub-pos/sub-color.
 
 ### modernx.lua (v0.4.7) (DISABLED)
 - On-screen controller replacement by zydezu.
