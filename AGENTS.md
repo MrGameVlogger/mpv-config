@@ -9,9 +9,25 @@
   mpv and talks to jf-mpv-osc over script messages). jellyfin.lua is disabled.
 
 ## Backup
-- Private GitHub repository: https://github.com/MrGameVlogger/mpv-config
+- Public GitHub repository: https://github.com/MrGameVlogger/mpv-config
 - Excludes (see .gitignore): `.DS_Store`, `mpv.log`, `watch_later/`,
   `watch_history.jsonl`, `script-opts/jellyfin.conf`, `sponsorblock.txt`
+
+## Releases & vendored-script sync
+- This repo has no release cycle: the live artifact is the git clone at
+  `~/.config/mpv`. Deploying = `git -C ~/.config/mpv pull origin main`
+  after a PR merges. Never edit the live tree without a PR — it must stay
+  a clean clone.
+- Two scripts are vendored and must stay byte-identical with their source
+  repos (verify with `diff` after every sync):
+  - `scripts/thumbfast.lua` ← https://github.com/MrGameVlogger/thumbfast-jellyfin
+    releases (track the version pin in the Scripts section below)
+  - `scripts/trickplay-jf-osc.lua` ← https://github.com/MrGameVlogger/jf-mpv-osc
+    `main`
+- Sync procedure for either: copy the file → `diff` confirms identical →
+  PR here → merge → `git -C ~/.config/mpv pull`. Update the version pin /
+  notes in this file in the same PR.
+- All changes go through PRs, even docs (see the fork's PR workflow).
 
 ## Configuration Philosophy
 - Do NOT remove or change settings without asking, even if they appear unused.
