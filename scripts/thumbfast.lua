@@ -52,7 +52,7 @@ mp.options.read_options(options, "thumbfast")
 
 local properties = {}
 local pre_0_30_0 = mp.command_native_async == nil
-local pre_0_33_0 = true
+local pre_0_33_0 = mp.get_property_native("options/vo-mmcss-profile") ~= nil
 local support_media_control = mp.get_property_native("media-controls") ~= nil
 
 -- Jellyfin Trickplay support
@@ -84,23 +84,28 @@ FFMPEG = find_ffmpeg()
 
 -- Helper to run subprocesses with correct PATH on macOS
 local os_name = mp.get_property("platform") or "linux"
-local function run_subprocess(args, async, callback)
+local function run_subprocess(args, async, callback, stdin_data)
     local env = nil
     if os_name == "darwin" then
         local path = os.getenv("PATH") or ""
         env = "PATH=" .. path .. ":/opt/homebrew/bin:/usr/local/bin"
     end
     if async then
-        return mp.command_native_async({name="subprocess", playback_only=true, capture_stdout=true, capture_stderr=true, args=args, env=env}, callback)
+        return mp.command_native_async({name="subprocess", playback_only=true, capture_stdout=true, capture_stderr=true, args=args, env=env, stdin_data=stdin_data or ""}, callback)
     else
-        return mp.command_native({name="subprocess", capture_stdout=true, capture_stderr=true, playback_only=false, args=args, env=env})
+        return mp.command_native({name="subprocess", capture_stdout=true, capture_stderr=true, playback_only=false, args=args, env=env, stdin_data=stdin_data or ""})
     end
 end
 
--- curl never hangs the player: bounded connect and total times
-local function curl_args(url, api_key, extra)
-    local args = {CURL, "-sS", "--connect-timeout", "5", "--max-time", "60", "-L",
-        "-H", "Authorization: MediaBrowser Token=\""..api_key.."\""}
+-- curl never hangs the player: bounded connect and total times. The auth
+-- header travels via curl's stdin config (-K -) so the token is not visible
+-- in the process list.
+local function curl_config(api_key)
+    local key = tostring(api_key):gsub("\\", "\\\\"):gsub('"', '\\"')
+    return "header = \"Authorization: MediaBrowser Token=\\\"" .. key .. "\\\"\"\n"
+end
+local function curl_args(url, extra)
+    local args = {CURL, "-sS", "--connect-timeout", "5", "--max-time", "60", "-L", "-K", "-"}
     for _, a in ipairs(extra or {}) do table.insert(args, a) end
     table.insert(args, url)
     return args
@@ -225,25 +230,26 @@ local function extract_jellyfin_info(path)
 end
 
 local function get_user_id_async(server, api_key, callback)
-    run_subprocess(curl_args(server.."/Users/Me", api_key), true, function(_, result)
+    local cfg = curl_config(api_key)
+    run_subprocess(curl_args(server.."/Users/Me"), true, function(_, result)
         if result and result.status == 0 and result.stdout then
             local me = mp.utils.parse_json(result.stdout)
             if me and me.Id then return callback(me.Id) end
         end
         -- older servers without /Users/Me
-        run_subprocess(curl_args(server.."/Users", api_key), true, function(_, r2)
+        run_subprocess(curl_args(server.."/Users"), true, function(_, r2)
             if r2 and r2.status == 0 and r2.stdout then
                 local users = mp.utils.parse_json(r2.stdout)
                 if users and users[1] and users[1].Id then return callback(users[1].Id) end
             end
             callback(nil)
-        end)
-    end)
+        end, cfg)
+    end, cfg)
 end
 
 local function get_trickplay_info_async(server, item_id, api_key, user_id, callback)
     local url = string.format("%s/Users/%s/Items/%s", server, user_id, item_id)
-    run_subprocess(curl_args(url, api_key), true, function(_, result)
+    run_subprocess(curl_args(url), true, function(_, result)
         local json = result and result.status == 0 and result.stdout and mp.utils.parse_json(result.stdout)
         if not (json and json.Trickplay) then return callback(nil) end
         -- Deterministic width pick: smallest that covers the display width,
@@ -265,20 +271,20 @@ local function get_trickplay_info_async(server, item_id, api_key, user_id, callb
         local info = chosen.info
         callback({width=info.Width or chosen.key, height=info.Height or 180, interval=info.Interval or 10000,
             tiles_x=info.TileWidth or 10, tiles_y=info.TileHeight or 10, thumbnail_count=info.ThumbnailCount or 0})
-    end)
+    end, curl_config(api_key))
 end
 
 local function download_trickplay_tile_async(server, item_id, api_key, width, index, callback)
     local url = string.format("%s/Videos/%s/Trickplay/%d/%d.jpg", server, item_id, width, index)
     local tmpfile = os.tmpname()..".jpg"
-    run_subprocess(curl_args(url, api_key, {"-o", tmpfile}), true, function(_, result)
+    run_subprocess(curl_args(url, {"-o", tmpfile}), true, function(_, result)
         if result and result.status == 0 then
             local f = io.open(tmpfile, "rb")
             if f then local sz = f:seek("end"); f:close(); if sz and sz > 0 then return callback(tmpfile) end end
         end
         os.remove(tmpfile)
         callback(nil)
-    end)
+    end, curl_config(api_key))
 end
 
 local function cleanup_trickplay()
@@ -617,7 +623,7 @@ local function get_os()
     return str_os_name
 end
 
-local os_name = mp.get_property("platform") or get_os()
+os_name = mp.get_property("platform") or get_os()
 
 local path_separator = os_name == "windows" and "\\" or "/"
 
@@ -1281,13 +1287,14 @@ local function sync_changes(prop, val)
 
     if not spawned then return end
 
-    run("set "..prop.." "..val)
+    run("set " .. prop .. " \"" .. tostring(val):gsub("\\", "\\\\"):gsub("\"", "\\\"") .. "\"")
     dirty = true
 end
 
 local function file_load()
-    cleanup_trickplay()
+    -- overlay-remove first: never unlink a file mpv may still have mapped
     clear()
+    cleanup_trickplay()
     spawned = false
     real_w, real_h = nil, nil
     last_real_w, last_real_h = nil, nil
@@ -1306,6 +1313,7 @@ local function file_load()
 end
 
 local function shutdown()
+    trickplay_clear()
     cleanup_trickplay()
     run("quit")
     remove_thumbnail_files()
