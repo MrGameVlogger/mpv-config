@@ -193,9 +193,11 @@
 - Local modifications:
   - Increased subprocess cache (`--demuxer-readahead-secs=600`, `--demuxer-max-bytes=2048MiB`) for better Jellyfin streaming performance.
   - Jellyfin Trickplay support merged in — fetches server-side thumbnails for Jellyfin streams instead of spawning subprocess.
-  - Requires `curl` (system default at `/usr/bin/curl`) and `ffmpeg` in PATH
-    (auto-detected at startup — Homebrew or system) for Trickplay.
+  - Requires `curl` and `ffmpeg` (auto-resolved at startup from common paths,
+    Homebrew first) for Trickplay.
   - Upstream backup: `thumbfast-upstream.lua.bak` (verified exact copy from GitHub).
+  - Synced from https://github.com/MrGameVlogger/thumbfast-jellyfin (v1.1.0) —
+    kept byte-identical with its `thumbfast-jellyfin.lua`.
   - Standalone release: https://github.com/MrGameVlogger/thumbfast-jellyfin
 
 ### trackselect.lua
