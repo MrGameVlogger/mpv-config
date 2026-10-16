@@ -60,6 +60,9 @@ local support_media_control = mp.get_property_native("media-controls") ~= nil
 -- recreation and collide with still-mapped files of the previous generation.
 local load_generation = 0
 local keep_path = nil
+-- forward declaration: `info` is defined further down (fallback section) and
+-- must be callable from the async callbacks below
+local info
 local trickplay = {
     active = false, server_url = nil, api_key = nil, item_id = nil,
     tile_width = 0, tile_height = 0, interval = 0,
@@ -223,7 +226,7 @@ local function extract_jellyfin_info(path)
     -- Everything before /Videos/ is the server base: works for root-hosted
     -- (http://host:8096/Videos/...) and subpath (http://host/jellyfin/Videos/...)
     local server = path:match("^(https?://.-)/Videos/") or path:match("^(https?://[^/]+)")
-    local item_id = path:match("/Videos/([a-f0-9]+)/stream")
+    local item_id = path:match("/Videos/([a-fA-F0-9-]+)/stream")
     local api_key = path:match("ApiKey=([^&]+)") or path:match("api_key=([^&]+)")
     if server and item_id and api_key then return server, item_id, api_key end
     return nil, nil, nil
@@ -268,9 +271,12 @@ local function get_trickplay_info_async(server, item_id, api_key, user_id, callb
             if c.key >= options.max_width then chosen = c break end
         end
         if not chosen then return callback(nil) end
-        local info = chosen.info
-        callback({width=info.Width or chosen.key, height=info.Height or 180, interval=info.Interval or 10000,
-            tiles_x=info.TileWidth or 10, tiles_y=info.TileHeight or 10, thumbnail_count=info.ThumbnailCount or 0})
+        local ti = chosen.info
+        local w = ti.Width or chosen.key
+        local h = ti.Height or 180
+        if not (w > 0 and h > 0) then return callback(nil) end
+        callback({width=w, height=h, interval=ti.Interval or 10000,
+            tiles_x=ti.TileWidth or 10, tiles_y=ti.TileHeight or 10, thumbnail_count=ti.ThumbnailCount or 0})
     end, curl_config(api_key))
 end
 
@@ -313,9 +319,16 @@ local function load_trickplay_async(server, item_id, api_key, info, scaled_w, sc
 
     local frames_written = 0
     local frame_size = scaled_w * scaled_h * 4
+    local out_closed = false
+    local function discard_out()
+        -- idempotent: several cancel paths can fire for one generation
+        if not out_closed then out:close(); out_closed = true end
+        os.remove(final_bgra)
+    end
 
     local function finish()
         out:close()
+        out_closed = true
         if gen ~= load_generation then os.remove(final_bgra); return end
         if frames_written == 0 then
             os.remove(final_bgra)
@@ -329,16 +342,19 @@ local function load_trickplay_async(server, item_id, api_key, info, scaled_w, sc
         trickplay.active = true
         trickplay.cached = was_cached
         trickplay.loading = false
-        spawned = false
-        spawn_waiting = false
         mp.msg.info("[thumbfast] Trickplay loaded: "..info.width.."x"..info.height.." -> "..scaled_w.."x"..scaled_h..", "..info.tiles_x.."x"..info.tiles_y.." tiles, "..frames_written.." frames")
+        info(effective_w, effective_h)  -- re-report dims once Trickplay owns the overlay
     end
 
     local function step(i)
-        if gen ~= load_generation then out:close(); os.remove(final_bgra); return end
+        if gen ~= load_generation then discard_out(); return end
         if i >= num_tiles then finish(); return end
         download_trickplay_tile_async(server, item_id, api_key, info.width, i, function(jpg)
-            if gen ~= load_generation then if jpg then os.remove(jpg) end; return end
+            if gen ~= load_generation then
+                if jpg then os.remove(jpg) end
+                discard_out()
+                return
+            end
             if not jpg then
                 mp.msg.warn("[thumbfast] Failed to download Trickplay tile " .. i)
                 finish()
@@ -349,7 +365,11 @@ local function load_trickplay_async(server, item_id, api_key, info, scaled_w, sc
                 string.format("scale=%d:%d", scaled_w * info.tiles_x, scaled_h * info.tiles_y),
                 "-pix_fmt", "bgra", "-f", "rawvideo", tile_bgra}, true, function(_, result)
                 os.remove(jpg)
-                if gen ~= load_generation then os.remove(tile_bgra); return end
+                if gen ~= load_generation then
+                    os.remove(tile_bgra)
+                    discard_out()
+                    return
+                end
                 if result and result.status == 0 then
                     local tile_file = io.open(tile_bgra, "rb")
                     local tile_data = tile_file and tile_file:read("*a")
@@ -421,9 +441,9 @@ local function init_trickplay()
                 trickplay.frames_written = cached_frames
                 trickplay.active = true
                 trickplay.cached = true
-                spawned = false
-                spawn_waiting = false
+                trickplay.loading = false
                 mp.msg.info("[thumbfast] Trickplay loaded from cache: "..scaled_w.."x"..scaled_h..", "..cached_frames.." frames")
+                info(effective_w, effective_h)  -- re-report dims once Trickplay owns the overlay
                 return
             end
             load_trickplay_async(server, item_id, api_key, info, scaled_w, scaled_h)
@@ -779,7 +799,7 @@ end
 
 local info_timer = nil
 
-local function info(w, h)
+info = function(w, h)
     local rotate = properties["video-params"] and properties["video-params"]["rotate"]
     local image = properties["current-tracks/video"] and properties["current-tracks/video"]["image"]
     local albumart = image and properties["current-tracks/video"]["albumart"]
@@ -1239,7 +1259,7 @@ local function watch_changes()
     last_crop = properties["video-crop"]
     last_has_vid = has_vid
 
-    if not spawned and not disabled and not trickplay.active and options.spawn_first and resized then
+    if not spawned and not disabled and not trickplay.active and not trickplay.loading and options.spawn_first and resized then
         spawn(mp.get_property_number("time-pos", 0))
         file_timer:resume()
     end
