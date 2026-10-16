@@ -42,7 +42,8 @@ local options = {
     audio = false,
     hwdec = false,
     direct_io = false,
-    mpv_path = "mpv"
+    mpv_path = "mpv",
+    cache_max_mb = 2048
 }
 
 mp.utils = require "mp.utils"
@@ -55,11 +56,15 @@ local pre_0_33_0 = true
 local support_media_control = mp.get_property_native("media-controls") ~= nil
 
 -- Jellyfin Trickplay support
+-- Process-global on purpose: per-instance counters restart at 0 on mpv
+-- recreation and collide with still-mapped files of the previous generation.
+local load_generation = 0
+local keep_path = nil
 local trickplay = {
     active = false, server_url = nil, api_key = nil, item_id = nil,
     tile_width = 0, tile_height = 0, interval = 0,
     tiles_x = 0, tiles_y = 0, thumbnail_count = 0,
-    tile_file = nil, last_frame = -1, last_x = nil, last_y = nil, is_shown = false,
+    tile_file = nil, cached = false, last_frame = -1, last_x = nil, last_y = nil, is_shown = false,
     scaled_w = 0, scaled_h = 0, frames_written = 0,
     loading = false,
 }
@@ -86,17 +91,32 @@ local function run_subprocess(args, async, callback)
         env = "PATH=" .. path .. ":/opt/homebrew/bin:/usr/local/bin"
     end
     if async then
-        return mp.command_native_async({name="subprocess", playback_only=true, args=args, env=env}, callback)
+        return mp.command_native_async({name="subprocess", playback_only=true, capture_stdout=true, capture_stderr=true, args=args, env=env}, callback)
     else
         return mp.command_native({name="subprocess", capture_stdout=true, capture_stderr=true, playback_only=false, args=args, env=env})
     end
 end
 
+-- curl never hangs the player: bounded connect and total times
+local function curl_args(url, api_key, extra)
+    local args = {CURL, "-sS", "--connect-timeout", "5", "--max-time", "60", "-L",
+        "-H", "Authorization: MediaBrowser Token=\""..api_key.."\""}
+    for _, a in ipairs(extra or {}) do table.insert(args, a) end
+    table.insert(args, url)
+    return args
+end
+
 -- Cache directory
 local CACHE_DIR = (os.getenv("TEMP") or os.getenv("TMPDIR") or "/tmp") .. "/thumbfast-jellyfin-cache"
+local CACHE_INDEX = CACHE_DIR .. "/index.txt"
 
 local function ensure_cache_dir()
-    os.execute("mkdir -p \"" .. CACHE_DIR .. "\"")
+    -- mkdir -p is not portable to cmd.exe; use mkdir per platform, no shell
+    if os_name == "windows" then
+        run_subprocess({"cmd", "/c", "mkdir", CACHE_DIR})
+    else
+        run_subprocess({"mkdir", "-p", CACHE_DIR})
+    end
 end
 
 local function get_cache_path(item_id, scaled_w, scaled_h, tiles_x, tiles_y)
@@ -113,18 +133,55 @@ local function load_from_cache(item_id, scaled_w, scaled_h, tiles_x, tiles_y)
 
     local f = io.open(cache_path, "rb")
     if not f then return nil, 0 end
-
-    local info_f = io.open(info_path, "r")
-    if not info_f then f:close(); return nil, 0 end
-
-    local frames = tonumber(info_f:read("*l")) or 0
-    info_f:close()
+    local size = f:seek("end")
     f:close()
 
-    if frames > 0 then
+    local info_f = io.open(info_path, "r")
+    if not info_f then return nil, 0 end
+    local frames = tonumber(info_f:read("*l")) or 0
+    info_f:close()
+
+    -- Validate against the mmap contract: a short file means mpv would SIGBUS
+    -- while seeking the strip. Discard partial/stale pairs instead.
+    if frames > 0 and size == frames * scaled_w * scaled_h * 4 then
         return cache_path, frames
     end
+    os.remove(cache_path)
+    os.remove(info_path)
     return nil, 0
+end
+
+-- Keep the cache bounded: a two-hour movie is ~250MB of BGRA at 400x225.
+local function enforce_cache_limit()
+    local max_bytes = (tonumber(options.cache_max_mb) or 2048) * 1024 * 1024
+    local idx = io.open(CACHE_INDEX, "r")
+    if not idx then return end
+    local entries = {}
+    for line in idx:lines() do
+        local path, size, ts = line:match("^(.*)\t(%d+)\t(%d+)$")
+        if path then table.insert(entries, {path=path, size=tonumber(size), ts=tonumber(ts)}) end
+    end
+    idx:close()
+    local total = 0
+    for _, e in ipairs(entries) do total = total + e.size end
+    local out, i = {}, 1
+    while i <= #entries do
+        local e = entries[i]
+        if total > max_bytes and e.path ~= keep_path then
+            os.remove(e.path)
+            os.remove((e.path:gsub("%.bgra$", ".info")))
+            total = total - e.size
+        else
+            table.insert(out, e)
+        end
+        i = i + 1
+    end
+    local f = io.open(CACHE_INDEX, "w")
+    if not f then return end
+    for _, e in ipairs(out) do
+        f:write(e.path .. "\t" .. e.size .. "\t" .. e.ts .. "\n")
+    end
+    f:close()
 end
 
 local function save_to_cache(item_id, scaled_w, scaled_h, tiles_x, tiles_y, bgra_path, frames)
@@ -132,168 +189,190 @@ local function save_to_cache(item_id, scaled_w, scaled_h, tiles_x, tiles_y, bgra
     local cache_path = get_cache_path(item_id, scaled_w, scaled_h, tiles_x, tiles_y)
     local info_path = get_cache_info_path(item_id, scaled_w, scaled_h, tiles_x, tiles_y)
 
-    -- Move BGRA file to cache
-    os.rename(bgra_path, cache_path)
+    -- os.rename fails across devices; keep the temp file in that case instead
+    -- of pointing tile_file at a path that was never written.
+    local renamed = os.rename(bgra_path, cache_path)
+    if not renamed then
+        return bgra_path, false
+    end
 
-    -- Save frame count
     local info_f = io.open(info_path, "w")
     if info_f then
         info_f:write(tostring(frames) .. "\n")
         info_f:close()
     end
 
-    return cache_path
+    local idx = io.open(CACHE_INDEX, "a")
+    if idx then
+        idx:write(cache_path .. "\t" .. (frames * scaled_w * scaled_h * 4) .. "\t" .. os.time() .. "\n")
+        idx:close()
+    end
+    keep_path = cache_path
+    enforce_cache_limit()
+    keep_path = nil
+
+    return cache_path, true
 end
 
 local function extract_jellyfin_info(path)
-    local server = path:match("^(https?://[^/]+/[^/]+)") or path:match("^(https?://[^/]+)")
+    -- Everything before /Videos/ is the server base: works for root-hosted
+    -- (http://host:8096/Videos/...) and subpath (http://host/jellyfin/Videos/...)
+    local server = path:match("^(https?://.-)/Videos/") or path:match("^(https?://[^/]+)")
     local item_id = path:match("/Videos/([a-f0-9]+)/stream")
     local api_key = path:match("ApiKey=([^&]+)") or path:match("api_key=([^&]+)")
     if server and item_id and api_key then return server, item_id, api_key end
     return nil, nil, nil
 end
 
-local function get_user_id(server, api_key)
-    local result = run_subprocess({CURL, "-sS", "-H", "Authorization: MediaBrowser Token=\""..api_key.."\"", server.."/Users"})
-    if result and result.status == 0 and result.stdout then
-        local users = mp.utils.parse_json(result.stdout)
-        if users and users[1] and users[1].Id then return users[1].Id end
-    end
-    return nil
+local function get_user_id_async(server, api_key, callback)
+    run_subprocess(curl_args(server.."/Users/Me", api_key), true, function(_, result)
+        if result and result.status == 0 and result.stdout then
+            local me = mp.utils.parse_json(result.stdout)
+            if me and me.Id then return callback(me.Id) end
+        end
+        -- older servers without /Users/Me
+        run_subprocess(curl_args(server.."/Users", api_key), true, function(_, r2)
+            if r2 and r2.status == 0 and r2.stdout then
+                local users = mp.utils.parse_json(r2.stdout)
+                if users and users[1] and users[1].Id then return callback(users[1].Id) end
+            end
+            callback(nil)
+        end)
+    end)
 end
 
-local function get_trickplay_info(server, item_id, api_key, user_id)
+local function get_trickplay_info_async(server, item_id, api_key, user_id, callback)
     local url = string.format("%s/Users/%s/Items/%s", server, user_id, item_id)
-    local result = run_subprocess({CURL, "-sS", "-H", "Authorization: MediaBrowser Token=\""..api_key.."\"", url})
-    if result and result.status == 0 and result.stdout then
-        local json = mp.utils.parse_json(result.stdout)
-        if json and json.Trickplay then
-            for _, wd in pairs(json.Trickplay) do
-                for ws, info in pairs(wd) do
-                    local w = tonumber(ws)
-                    if w and info then
-                        return {width=info.Width or w, height=info.Height or 180, interval=info.Interval or 10000,
-                            tiles_x=info.TileWidth or 10, tiles_y=info.TileHeight or 10, thumbnail_count=info.ThumbnailCount or 0}
-                    end
-                end
+    run_subprocess(curl_args(url, api_key), true, function(_, result)
+        local json = result and result.status == 0 and result.stdout and mp.utils.parse_json(result.stdout)
+        if not (json and json.Trickplay) then return callback(nil) end
+        -- Deterministic width pick: smallest that covers the display width,
+        -- else the largest available. (pairs() order is unstable.)
+        local candidates = {}
+        for ws, wd in pairs(json.Trickplay) do
+            local w = tonumber(ws)
+            local info = type(wd) == "table" and (wd[1] or wd) or nil
+            if w and type(info) == "table" then
+                table.insert(candidates, {key = w, info = info})
             end
         end
-    end
-    return nil
+        table.sort(candidates, function(a, b) return a.key < b.key end)
+        local chosen = candidates[#candidates]
+        for _, c in ipairs(candidates) do
+            if c.key >= options.max_width then chosen = c break end
+        end
+        if not chosen then return callback(nil) end
+        local info = chosen.info
+        callback({width=info.Width or chosen.key, height=info.Height or 180, interval=info.Interval or 10000,
+            tiles_x=info.TileWidth or 10, tiles_y=info.TileHeight or 10, thumbnail_count=info.ThumbnailCount or 0})
+    end)
 end
 
-local function download_trickplay_tile(server, item_id, api_key, width, index)
+local function download_trickplay_tile_async(server, item_id, api_key, width, index, callback)
     local url = string.format("%s/Videos/%s/Trickplay/%d/%d.jpg", server, item_id, width, index)
     local tmpfile = os.tmpname()..".jpg"
-    local result = run_subprocess({CURL, "-sS", "-L", "-H", "Authorization: MediaBrowser Token=\""..api_key.."\"", "-o", tmpfile, url})
-    if result and result.status == 0 then
-        local f = io.open(tmpfile, "rb")
-        if f then local s = f:seek("end"); f:close(); if s and s > 0 then return tmpfile end end
-    end
-    os.remove(tmpfile)
-    return nil
+    run_subprocess(curl_args(url, api_key, {"-o", tmpfile}), true, function(_, result)
+        if result and result.status == 0 then
+            local f = io.open(tmpfile, "rb")
+            if f then local sz = f:seek("end"); f:close(); if sz and sz > 0 then return callback(tmpfile) end end
+        end
+        os.remove(tmpfile)
+        callback(nil)
+    end)
 end
 
 local function cleanup_trickplay()
-    -- Don't remove cached files
+    load_generation = load_generation + 1  -- cancel in-flight loads
     if trickplay.tile_file and not trickplay.cached then
         os.remove(trickplay.tile_file)
     end
     trickplay.tile_file = nil
+    trickplay.cached = false
     trickplay.active = false
     trickplay.last_frame = -1
     trickplay.loading = false
 end
 
 local function load_trickplay_async(server, item_id, api_key, info, scaled_w, scaled_h)
+    local gen = load_generation
     trickplay.loading = true
 
-    -- Calculate how many tile images we need
     local tiles_per_image = info.tiles_x * info.tiles_y
     local num_tiles = math.ceil(info.thumbnail_count / tiles_per_image)
 
-    -- Download and concatenate all tiles into one flat BGRA file
+    -- Fresh file per generation: never rewrite a file mpv may have mapped.
     local final_bgra = os.tmpname() .. ".bgra"
     local out = io.open(final_bgra, "wb")
     if not out then mp.msg.warn("[thumbfast] Failed to create output file"); trickplay.loading = false; return end
 
     local frames_written = 0
-    local frame_size = scaled_w * scaled_h * 4  -- bytes per frame
+    local frame_size = scaled_w * scaled_h * 4
 
-    for i = 0, num_tiles - 1 do
-        local jpg = download_trickplay_tile(server, item_id, api_key, info.width, i)
-        if not jpg then
-            mp.msg.warn("[thumbfast] Failed to download Trickplay tile " .. i)
-            break
+    local function finish()
+        out:close()
+        if gen ~= load_generation then os.remove(final_bgra); return end
+        if frames_written == 0 then
+            os.remove(final_bgra)
+            mp.msg.warn("[thumbfast] No frames written")
+            trickplay.loading = false
+            return
         end
+        local cached_path, was_cached = save_to_cache(item_id, scaled_w, scaled_h, info.tiles_x, info.tiles_y, final_bgra, frames_written)
+        trickplay.tile_file = cached_path
+        trickplay.frames_written = frames_written
+        trickplay.active = true
+        trickplay.cached = was_cached
+        trickplay.loading = false
+        spawned = false
+        spawn_waiting = false
+        mp.msg.info("[thumbfast] Trickplay loaded: "..info.width.."x"..info.height.." -> "..scaled_w.."x"..scaled_h..", "..info.tiles_x.."x"..info.tiles_y.." tiles, "..frames_written.." frames")
+    end
 
-        -- Convert tile to BGRA
-        local tile_bgra = jpg:gsub("%.jpg$", ".bgra")
-        local r = run_subprocess({FFMPEG, "-y", "-i", jpg, "-vf", string.format("scale=%d:%d", scaled_w * info.tiles_x, scaled_h * info.tiles_y), "-pix_fmt", "bgra", "-f", "rawvideo", tile_bgra})
-        os.remove(jpg)
-
-        if r and r.status == 0 then
-            -- Read tile and extract individual frames
-            local tile_file = io.open(tile_bgra, "rb")
-            if tile_file then
-                local tile_data = tile_file:read("*a")
-                tile_file:close()
-
-                if tile_data then
-                    local tile_w = scaled_w * info.tiles_x
-                    local tile_h = scaled_h * info.tiles_y
-                    local tile_stride = tile_w * 4  -- bytes per row in tile
-
-                    -- Calculate how many frames in this tile
-                    local tile_frames = tiles_per_image
-                    if i == num_tiles - 1 then
-                        tile_frames = info.thumbnail_count - (i * tiles_per_image)
-                    end
-
-                    -- Extract each frame from the grid
-                    for f = 0, tile_frames - 1 do
-                        local gx = f % info.tiles_x
-                        local gy = math.floor(f / info.tiles_x)
-
-                        -- Calculate position in tile data
-                        local frame_x = gx * scaled_w
-                        local frame_y = gy * scaled_h
-
-                        -- Extract frame row by row
-                        for row = 0, scaled_h - 1 do
-                            local src_offset = (frame_y + row) * tile_stride + frame_x * 4
-                            local row_data = tile_data:sub(src_offset + 1, src_offset + frame_size / scaled_h)
-                            out:write(row_data)
+    local function step(i)
+        if gen ~= load_generation then out:close(); os.remove(final_bgra); return end
+        if i >= num_tiles then finish(); return end
+        download_trickplay_tile_async(server, item_id, api_key, info.width, i, function(jpg)
+            if gen ~= load_generation then if jpg then os.remove(jpg) end; return end
+            if not jpg then
+                mp.msg.warn("[thumbfast] Failed to download Trickplay tile " .. i)
+                finish()
+                return
+            end
+            local tile_bgra = jpg:gsub("%.jpg$", ".bgra")
+            run_subprocess({FFMPEG, "-y", "-i", jpg, "-vf",
+                string.format("scale=%d:%d", scaled_w * info.tiles_x, scaled_h * info.tiles_y),
+                "-pix_fmt", "bgra", "-f", "rawvideo", tile_bgra}, true, function(_, result)
+                os.remove(jpg)
+                if gen ~= load_generation then os.remove(tile_bgra); return end
+                if result and result.status == 0 then
+                    local tile_file = io.open(tile_bgra, "rb")
+                    local tile_data = tile_file and tile_file:read("*a")
+                    if tile_file then tile_file:close() end
+                    if tile_data then
+                        local tile_stride = scaled_w * info.tiles_x * 4
+                        local tile_frames = tiles_per_image
+                        if i == num_tiles - 1 then
+                            tile_frames = info.thumbnail_count - (i * tiles_per_image)
                         end
-
-                        frames_written = frames_written + 1
+                        for f = 0, tile_frames - 1 do
+                            local gx = f % info.tiles_x
+                            local gy = math.floor(f / info.tiles_x)
+                            local frame_x = gx * scaled_w
+                            local frame_y = gy * scaled_h
+                            for row = 0, scaled_h - 1 do
+                                local src_offset = (frame_y + row) * tile_stride + frame_x * 4
+                                out:write(tile_data:sub(src_offset + 1, src_offset + scaled_w * 4))
+                            end
+                            frames_written = frames_written + 1
+                        end
                     end
                 end
-            end
-        end
-        os.remove(tile_bgra)
+                os.remove(tile_bgra)
+                step(i + 1)
+            end)
+        end)
     end
-
-    out:close()
-
-    if frames_written == 0 then
-        os.remove(final_bgra)
-        mp.msg.warn("[thumbfast] No frames written")
-        trickplay.loading = false
-        return
-    end
-
-    -- Save to cache
-    local cached_path = save_to_cache(item_id, scaled_w, scaled_h, info.tiles_x, info.tiles_y, final_bgra, frames_written)
-
-    trickplay.tile_file = cached_path
-    trickplay.frames_written = frames_written
-    trickplay.active = true
-    trickplay.cached = true
-    trickplay.loading = false
-    spawned = false
-    spawn_waiting = false
-    mp.msg.info("[thumbfast] Trickplay loaded: "..info.width.."x"..info.height.." -> "..scaled_w.."x"..scaled_h..", "..info.tiles_x.."x"..info.tiles_y.." tiles, "..frames_written.." frames (cached)")
+    step(0)
 end
 
 local function init_trickplay()
@@ -302,50 +381,53 @@ local function init_trickplay()
     local server, item_id, api_key = extract_jellyfin_info(path)
     if not server or not item_id or not api_key then return false end
     trickplay.server_url = server; trickplay.item_id = item_id; trickplay.api_key = api_key
-    local uid = get_user_id(server, api_key)
-    if not uid then mp.msg.warn("[thumbfast] Failed to get Jellyfin user ID"); return false end
-    local info = get_trickplay_info(server, item_id, api_key, uid)
-    if not info then mp.msg.info("[thumbfast] No Trickplay data for this item"); return false end
-    trickplay.tile_width = info.width; trickplay.tile_height = info.height
-    trickplay.interval = info.interval; trickplay.tiles_x = info.tiles_x
-    trickplay.tiles_y = info.tiles_y; trickplay.thumbnail_count = info.thumbnail_count
+    trickplay.loading = true  -- keep thumb() from spawning the decode worker meanwhile
+    local gen = load_generation
+    get_user_id_async(server, api_key, function(uid)
+        if gen ~= load_generation then return end
+        if not uid then trickplay.loading = false; mp.msg.warn("[thumbfast] Failed to get Jellyfin user ID"); return end
+        get_trickplay_info_async(server, item_id, api_key, uid, function(info)
+            if gen ~= load_generation then return end
+            if not info then trickplay.loading = false; mp.msg.info("[thumbfast] No Trickplay data for this item"); return end
+            trickplay.tile_width = info.width; trickplay.tile_height = info.height
+            trickplay.interval = info.interval; trickplay.tiles_x = info.tiles_x
+            trickplay.tiles_y = info.tiles_y; trickplay.thumbnail_count = info.thumbnail_count
 
-    -- Calculate scaled dimensions maintaining aspect ratio, with HiDPI scaling
-    local scale = properties["display-hidpi-scale"] or 1
-    local aspect = info.width / info.height
-    local scaled_w, scaled_h
-    local max_w = options.max_width * scale
-    local max_h = options.max_height * scale
-    if max_w / max_h > aspect then
-        scaled_h = math.floor(max_h + 0.5)
-        scaled_w = math.floor(scaled_h * aspect + 0.5)
-    else
-        scaled_w = math.floor(max_w + 0.5)
-        scaled_h = math.floor(scaled_w / aspect + 0.5)
-    end
-    trickplay.scaled_w = scaled_w
-    trickplay.scaled_h = scaled_h
+            -- Scaled dimensions preserving aspect ratio, with HiDPI scaling
+            local scale = properties["display-hidpi-scale"] or 1
+            local aspect = info.width / info.height
+            local scaled_w, scaled_h
+            local max_w = options.max_width * scale
+            local max_h = options.max_height * scale
+            if max_w / max_h > aspect then
+                scaled_h = math.floor(max_h + 0.5)
+                scaled_w = math.floor(scaled_h * aspect + 0.5)
+            else
+                scaled_w = math.floor(max_w + 0.5)
+                scaled_h = math.floor(scaled_w / aspect + 0.5)
+            end
+            trickplay.scaled_w = scaled_w
+            trickplay.scaled_h = scaled_h
 
-    -- Check cache first
-    local cached_path, cached_frames = load_from_cache(item_id, scaled_w, scaled_h, info.tiles_x, info.tiles_y)
-    if cached_path and cached_frames > 0 then
-        trickplay.tile_file = cached_path
-        trickplay.frames_written = cached_frames
-        trickplay.active = true
-        trickplay.cached = true
-        spawned = false
-        spawn_waiting = false
-        mp.msg.info("[thumbfast] Trickplay loaded from cache: "..scaled_w.."x"..scaled_h..", "..cached_frames.." frames")
-        return true
-    end
-
-    -- Cache miss - load async
-    load_trickplay_async(server, item_id, api_key, info, scaled_w, scaled_h)
+            local cached_path, cached_frames = load_from_cache(item_id, scaled_w, scaled_h, info.tiles_x, info.tiles_y)
+            if cached_path and cached_frames > 0 then
+                trickplay.tile_file = cached_path
+                trickplay.frames_written = cached_frames
+                trickplay.active = true
+                trickplay.cached = true
+                spawned = false
+                spawn_waiting = false
+                mp.msg.info("[thumbfast] Trickplay loaded from cache: "..scaled_w.."x"..scaled_h..", "..cached_frames.." frames")
+                return
+            end
+            load_trickplay_async(server, item_id, api_key, info, scaled_w, scaled_h)
+        end)
+    end)
     return true
 end
 
 local function trickplay_thumb(time, x, y)
-    if not trickplay.active or not trickplay.tile_file then return end
+    if not trickplay.active or not trickplay.tile_file or not x or not y then return end
     local frame = math.floor(time / (trickplay.interval / 1000))
     if frame < 0 then frame = 0 end
     if frame >= trickplay.frames_written then frame = trickplay.frames_written - 1 end
@@ -1062,6 +1144,7 @@ local function thumb(time, r_x, r_y, script)
         trickplay_thumb(tonumber(time) or 0, tx, ty)
         return
     end
+    if trickplay.loading then return end
 
     if disabled then return end
 
