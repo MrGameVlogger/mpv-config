@@ -80,10 +80,12 @@ The shaders are applied via conditional profiles, so 4K content doesn't get unne
 
 | File | Status | Reason | Source |
 |------|--------|--------|--------|
-| `jellyfin.lua.disabled` | Disabled | Was the original Jellyfin client script. Now redundant with [Jellyfin MPV Play](https://github.com/MrGameVlogger/jellyfin-mpv-play) which handles everything via IPC. Kept for standalone use without the macOS app. | [EmperorPenguin18/mpv-jellyfin](https://github.com/EmperorPenguin18/mpv-jellyfin) |
-| `autocrop.lua.disabled` | Disabled | Stock mpv script for automatic black bar detection. Didn't like the behavior — kept trying to crop when I didn't want it to. | mpv built-in |
-| `modernx.lua.disabled` | Disabled | Was the previous OSC. Replaced by `trickplay-jf-osc.lua` which has native Jellyfin integration. Kept in case you want to switch back to the modern mpv style. | [zydezu/ModernX](https://github.com/zydezu/ModernX) |
-| `thumbfast-upstream.lua.bak` | Backup | Original upstream [thumbfast](https://github.com/po5/thumbfast) before [Jellyfin Trickplay modifications](https://github.com/MrGameVlogger/thumbfast-jellyfin). Used to sync updates from upstream. | [po5/thumbfast](https://github.com/po5/thumbfast) |
+All parked outside `scripts/` — mpv attempts to load every file there, so anything that is not a script logs a load error on every startup. Re-enabling = move the file back into `scripts/` and drop the `.disabled` suffix.
+
+| `backup/jellyfin.lua.disabled` | Disabled | Was the original Jellyfin client script. Now redundant with [Jellyfin MPV Play](https://github.com/MrGameVlogger/jellyfin-mpv-play) which handles everything via IPC. Kept for standalone use without the macOS app. | [EmperorPenguin18/mpv-jellyfin](https://github.com/EmperorPenguin18/mpv-jellyfin) |
+| `backup/autocrop.lua.disabled` | Disabled | Stock mpv script for automatic black bar detection. Didn't like the behavior — kept trying to crop when I didn't want it to. | mpv built-in |
+| `backup/modernx.lua.disabled` | Disabled | Was the previous OSC. Replaced by `trickplay-jf-osc.lua` which has native Jellyfin integration. Kept in case you want to switch back to the modern mpv style. | [zydezu/ModernX](https://github.com/zydezu/ModernX) |
+| `backup/thumbfast-upstream.lua` | Backup | Original upstream [thumbfast](https://github.com/po5/thumbfast) before [Jellyfin Trickplay modifications](https://github.com/MrGameVlogger/thumbfast-jellyfin). Used to sync updates from upstream. | [po5/thumbfast](https://github.com/po5/thumbfast) |
 
 ## Shaders
 
