@@ -255,14 +255,26 @@ local function get_trickplay_info_async(server, item_id, api_key, user_id, callb
     run_subprocess(curl_args(url), true, function(_, result)
         local json = result and result.status == 0 and result.stdout and mp.utils.parse_json(result.stdout)
         if not (json and json.Trickplay) then return callback(nil) end
+        -- Two server shapes exist:
+        --   Jellyfin <=10.9: { width: [info, ...] }
+        --   Jellyfin 12:     { itemId: { width: info } }
         -- Deterministic width pick: smallest that covers the display width,
         -- else the largest available. (pairs() order is unstable.)
         local candidates = {}
-        for ws, wd in pairs(json.Trickplay) do
-            local w = tonumber(ws)
-            local info = type(wd) == "table" and (wd[1] or wd) or nil
+        local function add_entry(w, info)
+            w = tonumber(w)
             if w and type(info) == "table" then
+                if info[1] then info = info[1] end  -- legacy: list per width
                 table.insert(candidates, {key = w, info = info})
+            end
+        end
+        for ws, wd in pairs(json.Trickplay) do
+            if tonumber(ws) then
+                add_entry(ws, wd)               -- legacy shape
+            elseif type(wd) == "table" then
+                for ws2, info2 in pairs(wd) do  -- Jellyfin 12 shape
+                    add_entry(ws2, info2)
+                end
             end
         end
         table.sort(candidates, function(a, b) return a.key < b.key end)
