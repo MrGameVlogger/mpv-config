@@ -184,14 +184,14 @@
 ### modernx.lua (v0.4.7) (DISABLED)
 - On-screen controller replacement by zydezu.
 - Repo: https://github.com/zydezu/ModernX
-- Disabled by renaming to modernx.lua.disabled.
+- Parked at `backup/modernx.lua.disabled` (out of `scripts/` — mpv attempts to load every file there).
 - Config: script-opts/modernx.conf
-- Re-enable by renaming back to modernx.lua and disabling trickplay-jf-osc.lua.
+- Re-enable by moving it back to `scripts/modernx.lua` and disabling trickplay-jf-osc.lua.
 
 ### jellyfin.lua (DISABLED)
 - Jellyfin playback integration by EmperorPenguin18.
 - Repo: https://github.com/EmperorPenguin18/mpv-jellyfin
-- Disabled by renaming to jellyfin.lua.disabled — Jellyfin MPV Play handles
+- Parked at `backup/jellyfin.lua.disabled` (out of `scripts/`) — Jellyfin MPV Play handles
   playback via IPC now. Kept for standalone use without the macOS app.
 - Config: script-opts/jellyfin.conf.example (copy to jellyfin.conf to use)
 
@@ -223,7 +223,7 @@
 
 ### autocrop.lua (DISABLED)
 - Stock mpv script for automatic black bar detection and cropping.
-- Currently disabled by renaming to autocrop.lua.disabled.
+- Currently parked at `backup/autocrop.lua.disabled` (out of `scripts/`).
 - Disabled because it caused p010/yuv420p10 pixel format toggling with hwdec=auto-copy.
 - If re-enabled, may cause GPU pipeline thrashing with 10-bit content.
 
