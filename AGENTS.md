@@ -211,7 +211,7 @@
   - Jellyfin Trickplay support merged in — fetches server-side thumbnails for Jellyfin streams instead of spawning subprocess.
   - Requires `curl` and `ffmpeg` (auto-resolved at startup from common paths,
     Homebrew first) for Trickplay.
-  - Upstream backup: `thumbfast-upstream.lua.bak` (verified exact copy from GitHub).
+  - Upstream backup: `backup/thumbfast-upstream.lua` (verified exact copy from GitHub; kept out of `scripts/` because mpv attempts to load every file there).
   - Synced from https://github.com/MrGameVlogger/thumbfast-jellyfin (v1.1.3) —
     kept byte-identical with its `thumbfast-jellyfin.lua`.
   - Standalone release: https://github.com/MrGameVlogger/thumbfast-jellyfin
