@@ -214,7 +214,7 @@
   - Requires `curl` and `ffmpeg` (auto-resolved at startup from common paths,
     Homebrew first) for Trickplay.
   - Upstream backup: `backup/thumbfast-upstream.lua` (verified exact copy from GitHub; kept out of `scripts/` because mpv attempts to load every file there).
-  - Synced from https://github.com/MrGameVlogger/thumbfast-jellyfin (v1.1.3) —
+  - Synced from https://github.com/MrGameVlogger/thumbfast-jellyfin (v1.1.4) —
     kept byte-identical with its `thumbfast-jellyfin.lua`.
   - Standalone release: https://github.com/MrGameVlogger/thumbfast-jellyfin
 
