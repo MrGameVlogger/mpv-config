@@ -317,12 +317,12 @@ local function cleanup_trickplay()
     trickplay.loading = false
 end
 
-local function load_trickplay_async(server, item_id, api_key, info, scaled_w, scaled_h)
+local function load_trickplay_async(server, item_id, api_key, tp, scaled_w, scaled_h)
     local gen = load_generation
     trickplay.loading = true
 
-    local tiles_per_image = info.tiles_x * info.tiles_y
-    local num_tiles = math.ceil(info.thumbnail_count / tiles_per_image)
+    local tiles_per_image = tp.tiles_x * tp.tiles_y
+    local num_tiles = math.ceil(tp.thumbnail_count / tiles_per_image)
 
     -- Fresh file per generation: never rewrite a file mpv may have mapped.
     local final_bgra = os.tmpname() .. ".bgra"
@@ -348,20 +348,20 @@ local function load_trickplay_async(server, item_id, api_key, info, scaled_w, sc
             trickplay.loading = false
             return
         end
-        local cached_path, was_cached = save_to_cache(item_id, scaled_w, scaled_h, info.tiles_x, info.tiles_y, final_bgra, frames_written)
+        local cached_path, was_cached = save_to_cache(item_id, scaled_w, scaled_h, tp.tiles_x, tp.tiles_y, final_bgra, frames_written)
         trickplay.tile_file = cached_path
         trickplay.frames_written = frames_written
         trickplay.active = true
         trickplay.cached = was_cached
         trickplay.loading = false
-        mp.msg.info("[thumbfast] Trickplay loaded: "..info.width.."x"..info.height.." -> "..scaled_w.."x"..scaled_h..", "..info.tiles_x.."x"..info.tiles_y.." tiles, "..frames_written.." frames")
+        mp.msg.info("[thumbfast] Trickplay loaded: "..tp.width.."x"..tp.height.." -> "..scaled_w.."x"..scaled_h..", "..tp.tiles_x.."x"..tp.tiles_y.." tiles, "..frames_written.." frames")
         info(effective_w, effective_h)  -- re-report dims once Trickplay owns the overlay
     end
 
     local function step(i)
         if gen ~= load_generation then discard_out(); return end
         if i >= num_tiles then finish(); return end
-        download_trickplay_tile_async(server, item_id, api_key, info.width, i, function(jpg)
+        download_trickplay_tile_async(server, item_id, api_key, tp.width, i, function(jpg)
             if gen ~= load_generation then
                 if jpg then os.remove(jpg) end
                 discard_out()
@@ -374,7 +374,7 @@ local function load_trickplay_async(server, item_id, api_key, info, scaled_w, sc
             end
             local tile_bgra = jpg:gsub("%.jpg$", ".bgra")
             run_subprocess({FFMPEG, "-y", "-i", jpg, "-vf",
-                string.format("scale=%d:%d", scaled_w * info.tiles_x, scaled_h * info.tiles_y),
+                string.format("scale=%d:%d", scaled_w * tp.tiles_x, scaled_h * tp.tiles_y),
                 "-pix_fmt", "bgra", "-f", "rawvideo", tile_bgra}, true, function(_, result)
                 os.remove(jpg)
                 if gen ~= load_generation then
@@ -387,14 +387,14 @@ local function load_trickplay_async(server, item_id, api_key, info, scaled_w, sc
                     local tile_data = tile_file and tile_file:read("*a")
                     if tile_file then tile_file:close() end
                     if tile_data then
-                        local tile_stride = scaled_w * info.tiles_x * 4
+                        local tile_stride = scaled_w * tp.tiles_x * 4
                         local tile_frames = tiles_per_image
                         if i == num_tiles - 1 then
-                            tile_frames = info.thumbnail_count - (i * tiles_per_image)
+                            tile_frames = tp.thumbnail_count - (i * tiles_per_image)
                         end
                         for f = 0, tile_frames - 1 do
-                            local gx = f % info.tiles_x
-                            local gy = math.floor(f / info.tiles_x)
+                            local gx = f % tp.tiles_x
+                            local gy = math.floor(f / tp.tiles_x)
                             local frame_x = gx * scaled_w
                             local frame_y = gy * scaled_h
                             for row = 0, scaled_h - 1 do
@@ -424,16 +424,16 @@ local function init_trickplay()
     get_user_id_async(server, api_key, function(uid)
         if gen ~= load_generation then return end
         if not uid then trickplay.loading = false; mp.msg.warn("[thumbfast] Failed to get Jellyfin user ID"); return end
-        get_trickplay_info_async(server, item_id, api_key, uid, function(info)
+        get_trickplay_info_async(server, item_id, api_key, uid, function(tp)
             if gen ~= load_generation then return end
-            if not info then trickplay.loading = false; mp.msg.info("[thumbfast] No Trickplay data for this item"); return end
-            trickplay.tile_width = info.width; trickplay.tile_height = info.height
-            trickplay.interval = info.interval; trickplay.tiles_x = info.tiles_x
-            trickplay.tiles_y = info.tiles_y; trickplay.thumbnail_count = info.thumbnail_count
+            if not tp then trickplay.loading = false; mp.msg.info("[thumbfast] No Trickplay data for this item"); return end
+            trickplay.tile_width = tp.width; trickplay.tile_height = tp.height
+            trickplay.interval = tp.interval; trickplay.tiles_x = tp.tiles_x
+            trickplay.tiles_y = tp.tiles_y; trickplay.thumbnail_count = tp.thumbnail_count
 
             -- Scaled dimensions preserving aspect ratio, with HiDPI scaling
             local scale = properties["display-hidpi-scale"] or 1
-            local aspect = info.width / info.height
+            local aspect = tp.width / tp.height
             local scaled_w, scaled_h
             local max_w = options.max_width * scale
             local max_h = options.max_height * scale
@@ -447,7 +447,7 @@ local function init_trickplay()
             trickplay.scaled_w = scaled_w
             trickplay.scaled_h = scaled_h
 
-            local cached_path, cached_frames = load_from_cache(item_id, scaled_w, scaled_h, info.tiles_x, info.tiles_y)
+            local cached_path, cached_frames = load_from_cache(item_id, scaled_w, scaled_h, tp.tiles_x, tp.tiles_y)
             if cached_path and cached_frames > 0 then
                 trickplay.tile_file = cached_path
                 trickplay.frames_written = cached_frames
@@ -458,7 +458,7 @@ local function init_trickplay()
                 info(effective_w, effective_h)  -- re-report dims once Trickplay owns the overlay
                 return
             end
-            load_trickplay_async(server, item_id, api_key, info, scaled_w, scaled_h)
+            load_trickplay_async(server, item_id, api_key, tp, scaled_w, scaled_h)
         end)
     end)
     return true
