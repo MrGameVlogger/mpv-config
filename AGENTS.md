@@ -21,7 +21,9 @@
 - Two scripts are vendored and must stay byte-identical with their source
   repos (verify with `diff` after every sync):
   - `scripts/thumbfast.lua` ← https://github.com/MrGameVlogger/thumbfast-jellyfin
-    releases (track the version pin in the Scripts section below)
+    releases (track the version pin in the Scripts section below). Needs
+    v1.1.3+ on Jellyfin 12 servers: older parsers read only the ≤10.9
+    Trickplay shape and report "No Trickplay data" for every item.
   - `scripts/trickplay-jf-osc.lua` ← https://github.com/MrGameVlogger/jf-mpv-osc
     `main`
 - Sync procedure for either: copy the file → `diff` confirms identical →
