@@ -43,12 +43,18 @@ local options = {
     hwdec = false,
     direct_io = false,
     mpv_path = "mpv",
-    cache_max_mb = 2048
+    cache_max_mb = 2048,
+    tls_verify = true,
+    cacert = ""
 }
 
 mp.utils = require "mp.utils"
 mp.options = require "mp.options"
 mp.options.read_options(options, "thumbfast")
+
+if options.cacert ~= "" then
+    options.cacert = mp.command_native({"expand-path", options.cacert})
+end
 
 local properties = {}
 local pre_0_30_0 = mp.command_native_async == nil
@@ -68,6 +74,7 @@ local trickplay = {
     tile_width = 0, tile_height = 0, interval = 0,
     tiles_x = 0, tiles_y = 0, thumbnail_count = 0,
     tile_file = nil, cached = false, last_frame = -1, last_x = nil, last_y = nil, is_shown = false,
+    last_disp_w = nil, last_disp_h = nil,
     scaled_w = 0, scaled_h = 0, frames_written = 0,
     loading = false,
 }
@@ -108,7 +115,15 @@ local function curl_config(api_key)
     return "header = \"Authorization: MediaBrowser Token=\\\"" .. key .. "\\\"\"\n"
 end
 local function curl_args(url, extra)
-    local args = {CURL, "-sS", "--connect-timeout", "5", "--max-time", "60", "-L", "-K", "-"}
+    local args = {CURL, "-sS", "--connect-timeout", "5", "--max-time", "60", "-L"}
+    if not options.tls_verify then
+        table.insert(args, "-k")
+    end
+    if options.cacert ~= "" then
+        table.insert(args, "--cacert=" .. options.cacert)
+    end
+    table.insert(args, "-K")
+    table.insert(args, "-")
     for _, a in ipairs(extra or {}) do table.insert(args, a) end
     table.insert(args, url)
     return args
@@ -464,7 +479,7 @@ local function init_trickplay()
     return true
 end
 
-local function trickplay_thumb(time, x, y)
+local function trickplay_thumb(time, x, y, disp_w, disp_h)
     if not trickplay.active or not trickplay.tile_file or not x or not y then return end
     local frame = math.floor(time / (trickplay.interval / 1000))
     if frame < 0 then frame = 0 end
@@ -473,10 +488,16 @@ local function trickplay_thumb(time, x, y)
     local frame_size = trickplay.scaled_w * trickplay.scaled_h * 4
     local off = frame * frame_size
     local stride = trickplay.scaled_w * 4
-    if frame ~= trickplay.last_frame or x ~= trickplay.last_x or y ~= trickplay.last_y then
+    if frame ~= trickplay.last_frame or x ~= trickplay.last_x or y ~= trickplay.last_y
+        or disp_w ~= trickplay.last_disp_w or disp_h ~= trickplay.last_disp_h then
         trickplay.last_frame = frame; trickplay.last_x = x; trickplay.last_y = y
+        trickplay.last_disp_w = disp_w; trickplay.last_disp_h = disp_h
         trickplay.is_shown = true
-        mp.commandv("overlay-add", options.overlay_id, x, y, trickplay.tile_file, off, "bgra", trickplay.scaled_w, trickplay.scaled_h, stride)
+        if disp_w and disp_h then
+            mp.commandv("overlay-add", options.overlay_id, x, y, trickplay.tile_file, off, "bgra", trickplay.scaled_w, trickplay.scaled_h, stride, disp_w, disp_h)
+        else
+            mp.commandv("overlay-add", options.overlay_id, x, y, trickplay.tile_file, off, "bgra", trickplay.scaled_w, trickplay.scaled_h, stride)
+        end
     end
 end
 
@@ -484,6 +505,7 @@ local function trickplay_clear()
     if trickplay.is_shown then
         mp.commandv("overlay-remove", options.overlay_id)
         trickplay.is_shown = false; trickplay.last_frame = -1; trickplay.last_x = nil; trickplay.last_y = nil
+        trickplay.last_disp_w = nil; trickplay.last_disp_h = nil
     end
 end
 -- End Jellyfin Trickplay support
@@ -569,6 +591,9 @@ local dirty = false
 
 local x, y
 local last_x, last_y
+-- Display size override (OSC Preview API); nil means natural size (scaled by
+-- options.scale_factor) as requested by the legacy thumbfast protocol
+local disp_w, disp_h
 
 local last_seek_time
 
@@ -715,6 +740,23 @@ if mpv_path == "mpv" and os_name == "darwin" and unique then
                 mp.msg.warn("drag to your Applications folder and symlink mpv to fix Dock icons: `sudo ln -s /Applications/mpv.app/Contents/MacOS/mpv /usr/local/mpv`")
             end
         end
+    end
+end
+
+-- Decode-worker option names: --load-osd-console and --vd-lavc-software-fallback
+-- were renamed in mpv 0.40 (--load-console, --hwdec-software-fallback). Use the
+-- new names when the worker binary supports them; the old names remain accepted
+-- as deprecated aliases through 0.42 and are the safe choice for older workers.
+local worker_modern_opts = false
+do
+    local ok, r = pcall(mp.command_native, {
+        name = "subprocess", playback_only = false, capture_stdout = true,
+        args = {mpv_path, "--version"}
+    })
+    local out = ok and r and r.stdout or ""
+    local maj, min = out:match("[Mm]pv%s+v?(%d+)%.(%d+)")
+    if maj and (tonumber(maj) > 0 or tonumber(min) >= 40) then
+        worker_modern_opts = true
     end
 end
 
@@ -883,16 +925,31 @@ local function spawn(time)
 
     local args = {
         mpv_path, "--no-config", "--msg-level=all=no", "--idle", "--pause", "--keep-open=always", "--really-quiet", "--no-terminal",
-        "--load-scripts=no", "--osc=no", "--ytdl=no", "--load-stats-overlay=no", "--load-osd-console=no", "--load-auto-profiles=no",
+        "--load-scripts=no", "--osc=no", "--ytdl=no", "--load-stats-overlay=no", "--load-auto-profiles=no",
         "--edition="..(properties["edition"] or "auto"), "--vid="..(vid or "auto"), "--no-sub", "--no-audio",
         "--start="..time, allow_fast_seek and "--hr-seek=no" or "--hr-seek=yes",
         "--ytdl-format=worst", "--demuxer-readahead-secs=0", "--demuxer-max-bytes=128KiB",
-        "--vd-lavc-skiploopfilter=all", "--vd-lavc-software-fallback=1", "--vd-lavc-fast", "--vd-lavc-threads=2", "--hwdec="..(options.hwdec and "auto" or "no"),
+        "--vd-lavc-skiploopfilter=all", "--vd-lavc-fast", "--vd-lavc-threads=2", "--hwdec="..(options.hwdec and "auto" or "no"),
         "--vf="..vf_string(filters_all, true),
         "--sws-scaler=fast-bilinear",
         "--video-rotate="..last_rotate,
         "--ovc=rawvideo", "--of=image2", "--ofopts=update=1", "--o="..options.thumbnail
     }
+
+    if worker_modern_opts then
+        table.insert(args, "--load-console=no")
+        table.insert(args, "--hwdec-software-fallback=1")
+    else
+        table.insert(args, "--load-osd-console=no")
+        table.insert(args, "--vd-lavc-software-fallback=1")
+    end
+
+    if not options.tls_verify then
+        table.insert(args, "--tls-verify=no")
+    end
+    if options.cacert ~= "" then
+        table.insert(args, "--tls-ca-file=" .. options.cacert)
+    end
 
     if not pre_0_30_0 then
         table.insert(args, "--sws-allow-zimg=no")
@@ -1015,10 +1072,39 @@ local function run(command)
     end
 end
 
+-- OSC Preview API (mpv 0.42+): the OSC may attach an ASS decoration string
+-- (e.g. a thumbnail border) to draw alongside the thumbnail
+local preview_border
+
+local function preview_border_clear()
+    if preview_border then
+        preview_border:remove()
+        preview_border = nil
+    end
+end
+
+local function preview_border_update(ass_text)
+    if type(ass_text) ~= "string" or ass_text == "" then
+        preview_border_clear()
+        return
+    end
+    if not mp.create_osd_overlay then return end
+    if not preview_border then
+        preview_border = mp.create_osd_overlay("ass-events")
+    end
+    preview_border.data = ass_text
+    preview_border:update()
+end
+
 local function draw(w, h, script)
     if not w or not show_thumbnail then return end
     if x ~= nil then
-        local scale_w, scale_h = options.scale_factor ~= 1 and (w * options.scale_factor) or nil, options.scale_factor ~= 1 and (h * options.scale_factor) or nil
+        local scale_w, scale_h
+        if disp_w and disp_h then
+            scale_w, scale_h = disp_w, disp_h
+        elseif options.scale_factor ~= 1 then
+            scale_w, scale_h = w * options.scale_factor, h * options.scale_factor
+        end
         if pre_0_30_0 then
             mp.command_native({"overlay-add", options.overlay_id, x, y, options.thumbnail..".bgra", 0, "bgra", w, h, (4*w), scale_w, scale_h})
         else
@@ -1131,6 +1217,8 @@ end)
 file_timer:kill()
 
 local function clear()
+    preview_border_clear()
+    disp_w, disp_h = nil, nil
     -- Use Trickplay if active
     if trickplay.active then
         trickplay_clear()
@@ -1172,14 +1260,14 @@ end
 activity_timer = mp.add_timeout(options.quit_after_inactivity, quit)
 activity_timer:kill()
 
-local function thumb(time, r_x, r_y, script)
+local function thumb(time, r_x, r_y, script, req_w, req_h)
     -- Use Trickplay if active
     if trickplay.active then
         local tx, ty
         if r_x ~= "" and r_y ~= "" then
             tx, ty = math.floor(r_x + 0.5), math.floor(r_y + 0.5)
         end
-        trickplay_thumb(tonumber(time) or 0, tx, ty)
+        trickplay_thumb(tonumber(time) or 0, tx, ty, req_w, req_h)
         return
     end
     if trickplay.loading then return end
@@ -1195,6 +1283,7 @@ local function thumb(time, r_x, r_y, script)
         x, y = math.floor(r_x + 0.5), math.floor(r_y + 0.5)
     end
 
+    disp_w, disp_h = req_w, req_h
     script_name = script
     if last_x ~= x or last_y ~= y or not show_thumbnail then
         show_thumbnail = true
@@ -1345,6 +1434,7 @@ local function file_load()
 end
 
 local function shutdown()
+    preview_border_clear()
     trickplay_clear()
     cleanup_trickplay()
     run("quit")
@@ -1358,6 +1448,31 @@ end
 local function on_duration(prop, val)
     allow_fast_seek = (val or 30) >= 30
 end
+
+-- OSC Preview API (mpv 0.42+ stock osc.lua): requests arrive via the
+-- user-data/osc/draw-preview property instead of the thumbfast script messages.
+-- Both protocols are supported at once; they funnel into the same drawing paths.
+local function draw_preview(req)
+    if type(req) ~= "table" then
+        clear()
+        return
+    end
+    local time = tonumber(req["hover-sec"])
+    local rx, ry, rw, rh = req.x, req.y, req.w, req.h
+    if time == nil or rx == nil or ry == nil or rw == nil or rh == nil or rw <= 0 or rh <= 0 then
+        clear()
+        return
+    end
+    if trickplay.loading or (not trickplay.active and disabled) then
+        return
+    end
+    thumb(time, rx, ry, nil, math.floor(rw + 0.5), math.floor(rh + 0.5))
+    preview_border_update(req.ass)
+end
+
+mp.observe_property("user-data/osc/draw-preview", "native", function(_, req)
+    draw_preview(req)
+end)
 
 mp.observe_property("current-tracks/video", "native", function(name, value)
     if pre_0_33_0 then
