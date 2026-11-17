@@ -3,8 +3,8 @@
 ## System
 - macOS, Apple M2 Max (Mac14,6), 3456x2234 Retina display @ 120Hz
 - 12-core (8 Performance + 4 Efficiency), 64 GB RAM
-- mpv via Homebrew (currently v0.41.0_10), Vulkan rendering through MoltenVK
-- FFmpeg 9.0.2, libplacebo v7.360.1, MoltenVK 1.4.2
+- mpv via Homebrew (currently v0.42.0), Vulkan rendering through MoltenVK
+- FFmpeg 9.0.2, libplacebo v7.387.0, MoltenVK 1.4.2
 - Primary media source: Jellyfin server via Jellyfin MPV Play (the shim spawns
   mpv and talks to jf-mpv-osc over script messages). jellyfin.lua is disabled.
 
@@ -290,7 +290,8 @@ All shaders are in the `shaders/` directory and applied via conditional profiles
 - 2026-07-29: mpv 0.41.0_7 — libbluray 1.5.0 revision bump
 - 2026-08-11: mpv 0.41.0_8 — ffmpeg 9.0 revision bump (caused frame drops due to MoltenVK display timing)
 - 2026-08-31: mpv 0.41.0_9 — ffmpeg 9.0.1 bugfix, Vapoursynth 74+ backport
-- 2026-09-22: mpv 0.41.0_10 — ffmpeg 9.0.2 revision bump (currently installed)
+- 2026-09-22: mpv 0.41.0_10 — ffmpeg 9.0.2 revision bump
+- 2026-11-16: mpv 0.42.0_1 — new curl network backend (HTTP/2, connection reuse), context menu on right-click, libplacebo 7.387.0 (currently installed)
 
 ## Credits & Inspiration
 - classicjazz/mpv-config — macOS mpv configuration guide with shader recommendations
