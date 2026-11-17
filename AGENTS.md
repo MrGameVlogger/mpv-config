@@ -169,6 +169,13 @@
 
 ## Scripts
 
+Vendored scripts keep their upstream licenses; the repo's MIT `LICENSE` covers
+the configuration itself, not the files in `scripts/`. Known terms:
+`trickplay-jf-osc.lua` is GPL-3.0-or-later for the jellyfin-mpv-shim-derived
+parts (Material icon data Apache-2.0, mpv `osc.lua` base terms — see its repo
+`LICENSE.md`); `thumbfast.lua` and `backup/thumbfast-upstream.lua` are MPL-2.0
+(in-file headers).
+
 ### trickplay-jf-osc.lua
 - Jellyfin-styled OSC with built-in Trickplay support.
 - Maintained at https://github.com/MrGameVlogger/jf-mpv-osc (originally from
@@ -205,18 +212,19 @@
 
 ### thumbfast.lua
 - Video thumbnail generation on seekbar hover.
-- Repo: https://github.com/po5/thumbfast
-- Spawns a subprocess for thumbnail generation.
+- Fork of https://github.com/po5/thumbfast with Jellyfin Trickplay support:
+  fetches server-side thumbnails for Jellyfin streams instead of spawning a
+  subprocess; falls back to the normal thumbfast subprocess otherwise.
+- Requires `curl` (via PATH) and `ffmpeg` (auto-resolved at startup from
+  common paths, Homebrew first) for Trickplay.
 - Config: script-opts/thumbfast.conf
-- Local modifications:
-  - Increased subprocess cache (`--demuxer-readahead-secs=600`, `--demuxer-max-bytes=2048MiB`) for better Jellyfin streaming performance.
-  - Jellyfin Trickplay support merged in — fetches server-side thumbnails for Jellyfin streams instead of spawning subprocess.
-  - Requires `curl` and `ffmpeg` (auto-resolved at startup from common paths,
-    Homebrew first) for Trickplay.
-  - Upstream backup: `backup/thumbfast-upstream.lua` (verified exact copy from GitHub; kept out of `scripts/` because mpv attempts to load every file there).
-  - Synced from https://github.com/MrGameVlogger/thumbfast-jellyfin (v1.2.0) —
-    kept byte-identical with its `thumbfast-jellyfin.lua`.
-  - Standalone release: https://github.com/MrGameVlogger/thumbfast-jellyfin
+- Upstream backup: `backup/thumbfast-upstream.lua` (verified exact copy from GitHub; kept out of `scripts/` because mpv attempts to load every file there).
+- Synced from https://github.com/MrGameVlogger/thumbfast-jellyfin (v1.2.0) —
+  kept byte-identical with its `thumbfast-jellyfin.lua`. (A one-time
+  `--demuxer-readahead-secs=600` / `--demuxer-max-bytes=2048MiB` worker patch
+  was dropped when the byte-identical sync began; the worker's demuxer args
+  are upstream's.)
+- Standalone release: https://github.com/MrGameVlogger/thumbfast-jellyfin
 
 ### trackselect.lua
 - Track selection helper — selects non-dub audio and subtitle tracks automatically.
