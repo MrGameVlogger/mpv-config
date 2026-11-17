@@ -9,87 +9,87 @@ My personal [mpv](https://mpv.io/) configuration for macOS, optimized for anime 
 
 ## Hardware
 
-- **MacBook Pro** — Apple M2 Max (Mac14,6), 64GB RAM
-- **Display** — 3456x2234 Retina @ 120Hz
-- **OS** — macOS with MoltenVK for Vulkan support
+- **MacBook Pro.** Apple M2 Max (Mac14,6), 64GB RAM
+- **Display.** 3456x2234 Retina at 120Hz
+- **OS.** macOS with MoltenVK for Vulkan support
 
-## Why This Setup
+## Why this setup
 
 This configuration is built around three priorities:
 
-### 1. Anime-First
+### 1. Anime-first
 
 Most anime is in Japanese with English subtitles, but many releases include dub tracks that mpv might select by default. This setup fixes that:
 
 - **`trackselect.lua`** automatically selects Japanese audio and English subtitles based on track titles, even when language tags are missing
-- **Language priority** in `mpv.conf` puts Japanese first (`alang=ja,jp,jpn`) and Middle English before English for subtitles (`slang=enm,eng,en`) — the `enm` catches honorifics in fansubs
-- **`subs-with-matching-audio=no`** prevents mpv from auto-selecting subtitles that match the audio language (which would show Japanese subs on Japanese audio)
+- **Language priority** in `mpv.conf` puts Japanese first (`alang=ja,jp,jpn`) and Middle English before English for subtitles (`slang=enm,eng,en`). The `enm` catches honorifics in fansubs
+- **`subs-with-matching-audio=no`** prevents mpv from auto-selecting subtitles that match the audio language, which would show Japanese subs on Japanese audio
 
-### 2. Jellyfin Integration
+### 2. Jellyfin integration
 
 I watch everything through Jellyfin, so the setup is optimized for streaming:
 
-- **[Jellyfin MPV Play](https://github.com/MrGameVlogger/jellyfin-mpv-play)** launches mpv from the Jellyfin web UI — no need to copy URLs or use a browser
-- **[thumbfast-jellyfin](https://github.com/MrGameVlogger/thumbfast-jellyfin)** fetches pre-generated Trickplay thumbnails from the server instead of decoding video locally — instant seekbar previews with zero CPU overhead
-- **[jf-mpv-osc](https://github.com/MrGameVlogger/jf-mpv-osc)** (fork of [iwalton3/jf-mpv-osc](https://github.com/iwalton3/jf-mpv-osc)) provides a Jellyfin-styled OSC with skip intro button, action sheets for subtitle/audio selection, and queue navigation
-- **Large cache** (`demuxer-max-bytes=8192M`) buffers aggressively for smooth streaming over network
+- **[Jellyfin MPV Play](https://github.com/MrGameVlogger/jellyfin-mpv-play)** launches mpv from the Jellyfin web UI. You do not need to copy URLs or use a browser
+- **[thumbfast-jellyfin](https://github.com/MrGameVlogger/thumbfast-jellyfin)** fetches pre-generated Trickplay thumbnails from the server instead of decoding video locally. Seekbar previews need no local decoding
+- **[jf-mpv-osc](https://github.com/MrGameVlogger/jf-mpv-osc)** (fork of [iwalton3/jf-mpv-osc](https://github.com/iwalton3/jf-mpv-osc)) provides a Jellyfin-styled OSC with skip intro button, action sheets for subtitle and audio selection, and queue navigation
+- **Large cache** (`demuxer-max-bytes=8192M`) keeps 8GB of video buffered so playback does not stall on a slow network
 
-### 3. High-Quality Rendering
+### 3. High-quality rendering
 
-The M2 Max has plenty of GPU headroom, so I use shaders that make a visible difference:
+The M2 Max has plenty of GPU headroom, so I run shaders that fix specific artifacts:
 
-- **RAVU upscaling** for arbitrary ratios (720p→4K) — less ringing than NNEDI3
-- **ArtCNN** for 2x upscaling (1080p→4K) — neural network that superseded FSRCNNX
-- **CfL Prediction** for chroma — reconstructs chroma from luma, sharper than bilinear
-- **SSimSuperRes** for anti-ringing — sharpens without over-sharpening flat areas
+- **RAVU upscaling** for arbitrary ratios (720p to 4K), with less ringing than NNEDI3
+- **ArtCNN** for 2x upscaling (1080p to 4K), a neural network that superseded FSRCNNX
+- **CfL Prediction** for chroma, which reconstructs chroma from luma more sharply than bilinear
+- **SSimSuperRes** for anti-ringing, which sharpens without over-sharpening flat areas
 - **Conditional profiles** apply the right shader stack based on content resolution
 
-The shaders are applied via conditional profiles, so 4K content doesn't get unnecessary upscaling, and sub-1080p content gets the full treatment.
+The shaders are applied via conditional profiles, so 4K content doesn't get unnecessary upscaling, and sub-1080p content gets the full shader stack.
 
 ## Features
 
-### Video Rendering
+### Video rendering
 
-- **gpu-next** with Vulkan (via MoltenVK) — modern rendering pipeline with better color management than the legacy `gpu` VO
-- **VideoToolbox hardware decoding** — `auto-copy` mode (not zero-copy) because thumbfast Trickplay needs CPU-side frame access
-- **Conditional shader profiles** — different shader stacks for 4K, 1080p-1440p, and sub-1080p content
+- **gpu-next** with Vulkan (via MoltenVK). It has better color management than the legacy `gpu` VO
+- **VideoToolbox hardware decoding** in `auto-copy` mode (not zero-copy), because thumbfast Trickplay needs CPU-side frame access
+- **Conditional shader profiles** pick different shader stacks for 4K, 1080p-1440p, and sub-1080p content
 
-### Jellyfin Integration
+### Jellyfin integration
 
-- **Direct streaming** — play from Jellyfin server via [Jellyfin MPV Play](https://github.com/MrGameVlogger/jellyfin-mpv-play), no browser needed
-- **Trickplay thumbnails** — instant seekbar previews from Jellyfin's pre-generated tiles via [thumbfast-jellyfin](https://github.com/MrGameVlogger/thumbfast-jellyfin)
-- **Custom OSC** — Jellyfin-styled interface with Material icons via [jf-mpv-osc](https://github.com/MrGameVlogger/jf-mpv-osc)
+- **Direct streaming** from the Jellyfin server via [Jellyfin MPV Play](https://github.com/MrGameVlogger/jellyfin-mpv-play). No browser needed
+- **Trickplay thumbnails** show instant seekbar previews from Jellyfin's pre-generated tiles via [thumbfast-jellyfin](https://github.com/MrGameVlogger/thumbfast-jellyfin)
+- **Custom OSC** is a Jellyfin-styled interface with Material icons via [jf-mpv-osc](https://github.com/MrGameVlogger/jf-mpv-osc)
 
 ### Playback
 
-- **SponsorBlock** — auto-skip sponsors, outros, self-promos and interaction reminders via [zydezu's fork](https://github.com/zydezu/mpvconfig/blob/main/scripts/sponsorblock.lua). `skip_categories` in script-opts/sponsorblock.conf decides what is skipped (currently sponsor, outro, selfpromo, interaction — intros are detected but not auto-skipped, the Jellyfin shim handles those). Works with any OSC (core skipping is independent of ModernX).
-- **Auto-play** — loads adjacent files in directory for binge-watching (`autocreate-playlist=same`)
-- **Episode navigation** — `>` / `<` keys for next/previous episode
-- **Deband toggle** — `n` key to toggle deband on/off (off by default, settings optimized for M2 Max)
+- **SponsorBlock** skips sponsors, outros, self-promos and interaction reminders via [zydezu's fork](https://github.com/zydezu/mpvconfig/blob/main/scripts/sponsorblock.lua). `skip_categories` in script-opts/sponsorblock.conf decides what is skipped (currently sponsor, outro, selfpromo, interaction). Intros are detected but not auto-skipped. The Jellyfin shim handles those. Works with any OSC (core skipping is independent of ModernX)
+- **Auto-play** loads adjacent files in the directory for binge-watching (`autocreate-playlist=same`)
+- **Episode navigation.** The `>` and `<` keys move to the next or previous episode
+- **Deband toggle.** The `n` key toggles deband on and off (off by default, settings tuned for the M2 Max)
 
 ## Scripts
 
 | Script | Purpose | Why | Source |
 |--------|---------|-----|--------|
-| `trickplay-jf-osc.lua` | Jellyfin-styled OSC | Replaces mpv's built-in OSC with a Jellyfin-themed interface. Has skip intro button, action sheets for subtitle/audio selection, and integrates with [thumbfast-jellyfin](https://github.com/MrGameVlogger/thumbfast-jellyfin) (thumbfast protocol) for seekbar thumbnails. | [MrGameVlogger/jf-mpv-osc](https://github.com/MrGameVlogger/jf-mpv-osc) |
+| `trickplay-jf-osc.lua` | Jellyfin-styled OSC | Replaces mpv's built-in OSC with a Jellyfin-themed interface. Has skip intro button, action sheets for subtitle and audio selection, and integrates with [thumbfast-jellyfin](https://github.com/MrGameVlogger/thumbfast-jellyfin) (thumbfast protocol) for seekbar thumbnails. | [MrGameVlogger/jf-mpv-osc](https://github.com/MrGameVlogger/jf-mpv-osc) |
 | `thumbfast.lua` | Thumbnail generation | [Modified](https://github.com/MrGameVlogger/thumbfast-jellyfin) to fetch pre-generated Trickplay tiles from Jellyfin server instead of spawning a subprocess. Falls back to normal thumbfast for local files. | [po5/thumbfast](https://github.com/po5/thumbfast) + [MrGameVlogger/thumbfast-jellyfin](https://github.com/MrGameVlogger/thumbfast-jellyfin) |
-| `sponsorblock.lua` | SponsorBlock segment skipping | [zydezu's fork](https://github.com/zydezu/mpvconfig/blob/main/scripts/sponsorblock.lua) — core skipping works with any OSC, not just ModernX | [zydezu/mpvconfig](https://github.com/zydezu/mpvconfig/blob/main/scripts/sponsorblock.lua) |
+| `sponsorblock.lua` | SponsorBlock segment skipping | [zydezu's fork](https://github.com/zydezu/mpvconfig/blob/main/scripts/sponsorblock.lua). Core skipping works with any OSC, not just ModernX | [zydezu/mpvconfig](https://github.com/zydezu/mpvconfig/blob/main/scripts/sponsorblock.lua) |
 | `trackselect.lua` | Auto-select non-dub tracks | Automatically selects Japanese audio and English subtitles for anime. Uses track titles to identify non-dub tracks, so it works even when language tags are missing. | [po5/trackselect](https://github.com/po5/trackselect) |
 
-### Disabled & Backup Scripts
+### Disabled and backup scripts
 
-All parked outside `scripts/` — mpv attempts to load every file there, so anything that is not a script logs a load error on every startup. Re-enabling = move the file back into `scripts/` and drop the `.disabled` suffix.
+All parked outside `scripts/`, because mpv attempts to load every file there and anything that is not a script logs a load error on every startup. To re-enable, move the file back into `scripts/` and drop the `.disabled` suffix.
 
 | File | Status | Reason | Source |
 |------|--------|--------|--------|
 | `backup/jellyfin.lua.disabled` | Disabled | Was the original Jellyfin client script. Now redundant with [Jellyfin MPV Play](https://github.com/MrGameVlogger/jellyfin-mpv-play) which handles everything via IPC. Kept for standalone use without the macOS app. | [EmperorPenguin18/mpv-jellyfin](https://github.com/EmperorPenguin18/mpv-jellyfin) |
-| `backup/autocrop.lua.disabled` | Disabled | Stock mpv script for automatic black bar detection. Kept trying to crop when I didn't want it to, and caused `p010`/`yuv420p10` pixel format toggling with `hwdec=auto-copy`. | mpv built-in |
+| `backup/autocrop.lua.disabled` | Disabled | Stock mpv script for automatic black bar detection. Kept trying to crop when I didn't want it to, and caused `p010` and `yuv420p10` pixel format toggling with `hwdec=auto-copy`. | mpv built-in |
 | `backup/modernx.lua.disabled` | Disabled | Was the previous OSC. Replaced by `trickplay-jf-osc.lua` which has native Jellyfin integration. Kept in case you want to switch back to the modern mpv style. | [zydezu/ModernX](https://github.com/zydezu/ModernX) |
 | `backup/thumbfast-upstream.lua` | Backup | Original upstream [thumbfast](https://github.com/po5/thumbfast) before [Jellyfin Trickplay modifications](https://github.com/MrGameVlogger/thumbfast-jellyfin). Used to sync updates from upstream. | [po5/thumbfast](https://github.com/po5/thumbfast) |
 
 ## Shaders
 
-### Auto-Profiles (Always Active)
+### Auto-profiles (always active)
 
 These shaders are applied automatically based on content resolution via conditional profiles in `mpv.conf`:
 
@@ -98,16 +98,16 @@ These shaders are applied automatically based on content resolution via conditio
 | **4K** | height >= 2160 | CfL + SSimSuperRes | No upscaling needed, just chroma improvement and anti-ringing |
 | **1080p-1440p** | 1080 <= height < 2160 | RAVU + CfL + SSimSuperRes | Full upscaling pipeline for most anime BDRips |
 | **Sub-1080p** | height < 1080 | RAVU + CfL + SSimSuperRes | Same pipeline, RAVU handles larger upscale factor |
-| **HDR** | PQ/HLG gamma | — | bt.2446a tone mapping (fallback), target-peak=1600 (XDR display), HDR passthrough |
+| **HDR** | PQ/HLG gamma | None | bt.2446a tone mapping (fallback), target-peak=1600 (XDR display), HDR passthrough |
 
-### Keybind Stacks (Toggle Manually)
+### Keybind stacks (toggle manually)
 
 These shaders are not in auto-profiles but can be toggled via keybinds.
 
-| Keybind | Cycles Between | What's In Each Stack | Purpose |
+| Keybind | Cycles between | What's in each stack | Purpose |
 |---------|----------------|---------------------|---------|
-| `Ctrl+g` | RAVU stack ↔ ArtCNN stack ↔ off | **RAVU stack:** `ravu-zoom-ar-r3.hook` + `CfL_Prediction.glsl` + `SSimSuperRes.glsl` + `adaptive-sharpen.glsl`<br>**ArtCNN stack:** `ArtCNN_C4F16.glsl` + `CfL_Prediction.glsl` + `SSimSuperRes.glsl` + `adaptive-sharpen.glsl` | Switch upscaling strategy — RAVU for arbitrary ratios (720p→4K), ArtCNN for 2x (1080p→4K). Third press turns off all manual shaders (auto-profile shaders stay cleared until the next file loads). |
-| `Ctrl+h` | SSimDownscaler stack ↔ off | **SSimDownscaler stack:** `SSimDownscaler.glsl` + `CfL_Prediction.glsl` + `SSimSuperRes.glsl` + `adaptive-sharpen.glsl` | Toggle downscaling for 4K content on 1080p display. Hit again to turn off all manual shaders (auto-profile shaders stay cleared until the next file loads). |
+| `Ctrl+g` | RAVU stack, ArtCNN stack, off | **RAVU stack:** `ravu-zoom-ar-r3.hook` + `CfL_Prediction.glsl` + `SSimSuperRes.glsl` + `adaptive-sharpen.glsl`<br>**ArtCNN stack:** `ArtCNN_C4F16.glsl` + `CfL_Prediction.glsl` + `SSimSuperRes.glsl` + `adaptive-sharpen.glsl` | Switch upscaling strategy. RAVU for arbitrary ratios (720p to 4K), ArtCNN for 2x (1080p to 4K). Third press turns off all manual shaders (auto-profile shaders stay cleared until the next file loads). |
+| `Ctrl+h` | SSimDownscaler stack, off | **SSimDownscaler stack:** `SSimDownscaler.glsl` + `CfL_Prediction.glsl` + `SSimSuperRes.glsl` + `adaptive-sharpen.glsl` | Toggle downscaling for 4K content on 1080p display. Hit again to turn off all manual shaders (auto-profile shaders stay cleared until the next file loads). |
 
 **How it works:**
 - Auto-profiles apply shaders automatically based on content resolution
@@ -115,24 +115,24 @@ These shaders are not in auto-profiles but can be toggled via keybinds.
 - Both manual stacks include `adaptive-sharpen` which is NOT in auto-profiles (too much sharpening for always-on)
 - Both stacks include `CfL_Prediction` (chroma) and `SSimSuperRes` (anti-ringing) as base layers
 
-### Shader Details
+### Shader details
 
 | Shader | Purpose | Why | Source |
 |--------|---------|-----|--------|
-| `ravu-zoom-ar-r3.hook` | Arbitrary ratio upscaling | Best for non-integer scales (720p→4K). Unlike fixed-ratio shaders, handles any resolution. Part of the RAVU family which produces less ringing than NNEDI3. | [bjin/mpv-prescalers](https://github.com/bjin/mpv-prescalers) |
-| `CfL_Prediction.glsl` | Chroma from luma prediction | Reconstructs chroma signal from luma information. Produces sharper chroma upsampling than bilinear/bicubic, especially visible on anime color gradients. | [Artoriuz/glsl-chroma-from-luma-prediction](https://github.com/Artoriuz/glsl-chroma-from-luma-prediction) |
-| `SSimSuperRes.glsl` | Super-resolution enhancement | Anti-ringing shader that sharpens while preserving detail. Uses SSIM (structural similarity) to avoid over-sharpening. 4 render passes (2 downscale + variance + 3x3 final). | Original [igv/SSimSuperRes](https://github.com/igv) repo gone, distributed through mpv community |
-| `ArtCNN_C4F16.glsl` | Neural network upscaling (2x) | Best for 1080p→4K. Superseded [FSRCNNX](https://github.com/igv/FSRCNNX) with less ringing and better detail. Uses a lightweight CNN (4 layers, 16 filters). | [Artoriuz/ArtCNN](https://github.com/Artoriuz/ArtCNN) |
+| `ravu-zoom-ar-r3.hook` | Arbitrary ratio upscaling | Best for non-integer scales (720p to 4K). Unlike fixed-ratio shaders, handles any resolution. Part of the RAVU family which produces less ringing than NNEDI3. | [bjin/mpv-prescalers](https://github.com/bjin/mpv-prescalers) |
+| `CfL_Prediction.glsl` | Chroma from luma prediction | Reconstructs chroma signal from luma information. Produces sharper chroma upsampling than bilinear or bicubic, especially visible on anime color gradients. | [Artoriuz/glsl-chroma-from-luma-prediction](https://github.com/Artoriuz/glsl-chroma-from-luma-prediction) |
+| `SSimSuperRes.glsl` | Super-resolution | Anti-ringing shader that sharpens while preserving detail. Uses SSIM (structural similarity) to avoid over-sharpening. 4 render passes (2 downscale + variance + 3x3 final). | Original [igv/SSimSuperRes](https://github.com/igv) repo gone, distributed through mpv community |
+| `ArtCNN_C4F16.glsl` | Neural network upscaling (2x) | Best for 1080p to 4K. Superseded [FSRCNNX](https://github.com/igv/FSRCNNX) with less ringing and better detail. Uses a lightweight CNN (4 layers, 16 filters). | [Artoriuz/ArtCNN](https://github.com/Artoriuz/ArtCNN) |
 | `SSimDownscaler.glsl` | High-quality downscaling | For watching 4K content on 1080p displays. Uses SSIM-based approach for sharper downscaling than bilinear. | Original [igv/SSimDownscaler](https://github.com/igv) repo gone, distributed through mpv community |
-| `adaptive-sharpen.glsl` | Adaptive sharpening | Post-resize sharpening that adapts to local content. Avoids over-sharpening flat areas while enhancing edges. Applied after upscaling. | [bacondither/Adaptive-sharpen](https://github.com/bacondither/Adaptive-sharpen) |
+| `adaptive-sharpen.glsl` | Adaptive sharpening | Post-resize sharpening that adapts to local content. Avoids over-sharpening flat areas while keeping edges sharp. Applied after upscaling. | [bacondither/Adaptive-sharpen](https://github.com/bacondither/Adaptive-sharpen) |
 
-## Configuration Reference
+## Configuration reference
 
-### Video Output
+### Video output
 
 | Option | Value | Why |
 |--------|-------|-----|
-| `vo=gpu-next` | libplacebo-based renderer | Modern rendering pipeline with better color management (default since mpv 0.41) |
+| `vo=gpu-next` | libplacebo-based renderer | Better color management than the legacy `gpu` VO (default since mpv 0.41) |
 | `gpu-api=vulkan` | Vulkan backend | Required for gpu-next on macOS via MoltenVK |
 | `gpu-context=macvk` | macOS Vulkan context | macOS-specific Vulkan context |
 | `hwdec=auto-copy` | Hardware decoding | Auto-select best HW decoder, copy frames to CPU for script compatibility |
@@ -141,14 +141,14 @@ These shaders are not in auto-profiles but can be toggled via keybinds.
 | `vd-lavc-threads=0` | Auto | Auto-detect decoder thread count |
 | `vulkan-async-transfer=yes` | Async | Async texture uploads through MoltenVK |
 | `vulkan-async-compute=yes` | Async | Async compute shaders |
-| `profile=high-quality` | High quality | Sets ewa_lanczossharp scaling, sigmoid upscaling, etc. |
+| `profile=high-quality` | High quality | Sets ewa_lanczossharp scaling, sigmoid upscaling, and more |
 
 ### Deband
 
 | Option | Value | Why |
 |--------|-------|-----|
 | `deband=no` | Off by default | Toggle with `n` key at runtime |
-| `deband-iterations=4` | 4 passes | Higher = stronger but more GPU cost |
+| `deband-iterations=4` | 4 passes | Higher is stronger but costs more GPU |
 | `deband-range=24` | 24 pixels | How far the filter samples |
 | `deband-grain=16` | 16 | Adds dynamic noise to mask residual banding |
 
@@ -168,7 +168,7 @@ These shaders are not in auto-profiles but can be toggled via keybinds.
 | `target-trc=auto` | Auto | Auto-detect display transfer function |
 | `video-output-levels=full` | Full range | Full range output for accurate colors |
 
-### Colorspace Profiles
+### Colorspace profiles
 
 Applied automatically based on content type:
 
@@ -180,14 +180,14 @@ Applied automatically based on content type:
 | **SDR UHD BT.2020** | bt.2020 primaries, SDR | target-prim=bt.709, gamut-mapping-mode=absolute |
 | **HDR** | PQ/HLG gamma | bt.2446a tone mapping, target-peak=1600, HDR passthrough |
 
-### Other Auto-Profiles
+### Other auto-profiles
 
 | Profile | Condition | Settings |
 |---------|-----------|----------|
-| **Interlaced** | interlaced video frames | `deinterlace=yes` (BWDIF motion-adaptive) — older anime / DVDs |
+| **Interlaced** | interlaced video frames | `deinterlace=yes` (BWDIF motion-adaptive) for older anime and DVDs |
 | **HTTP/HTTPS/yt-dlp** | protocol profiles | `hls-bitrate=max` (best HLS variant), `cache=yes` |
 
-### Fallback Scalers
+### Fallback scalers
 
 These are active when no GLSL shader handles the scaling step (unusual resolutions, non-4K displays, final RGB output pass):
 
@@ -219,9 +219,9 @@ These are active when no GLSL shader handles the scaling step (unusual resolutio
 | `subs-with-matching-audio=no` | Disabled | Don't auto-select subs matching audio language |
 | `sub-gauss=1.0` | 1.0 | Slight subtitle blur for readability |
 | `sub-ass-override=no` | Disabled | Don't override ASS subtitle styling |
-| `sub-ass-style-overrides=...` | Custom | Affects non-ASS subs only (SRT, etc.) — PlayRes mapping and kerning. Never applied to ASS subtitles |
+| `sub-ass-style-overrides=...` | Custom | Affects non-ASS subs only (SRT and similar): PlayRes mapping and kerning. Never applied to ASS subtitles |
 | `sub-filter-sdh=yes` | Enabled | Filter SDH subtitles (deaf/hard-of-hearing) |
-| `#sub-filter-sdh-harder=yes` | Off (commented out) | More aggressive SDH filtering — not enabled because it can remove actual dialogue |
+| `#sub-filter-sdh-harder=yes` | Off (commented out) | Stricter SDH filtering, not enabled because it can remove actual dialogue |
 | `sub-font="Gandhi Sans"` | Gandhi Sans | Custom subtitle font |
 | `sub-font-size=50` | 50 | Subtitle font size |
 | `sub-color="#FFFFFF"` | White | Subtitle color |
@@ -243,7 +243,7 @@ These are active when no GLSL shader handles the scaling step (unusual resolutio
 
 | Option | Value | Why |
 |--------|-------|-----|
-| `ytdl-format=...` | Custom | Prefer HEVC 4K → VP9 4K → AV1 1080p → best |
+| `ytdl-format=...` | Custom | Prefer HEVC 4K, then VP9 4K, then AV1 1080p, then best |
 | `ytdl-raw-options-append=external-downloader=aria2c` | aria2c | Faster downloads with aria2c |
 
 ### Window
@@ -269,7 +269,7 @@ These are active when no GLSL shader handles the scaling step (unusual resolutio
 | `cache-on-disk=no` | Disabled | Don't cache to disk |
 | `demuxer-max-bytes=8192M` | 8GB | Large cache for Jellyfin streaming over network |
 | `demuxer-max-back-bytes=2048M` | 2GB | Large rewinding buffer |
-| `demuxer-readahead-secs=90` | 90 seconds | Aggressive readahead for streaming |
+| `demuxer-readahead-secs=90` | 90 seconds | Buffers 90 seconds ahead for streaming |
 | `demuxer-hysteresis-secs=10` | 10 seconds | Cache hysteresis threshold |
 | `cache-pause=yes` | Enabled | Pause when buffer is empty (prevents playback issues during streaming) |
 
@@ -281,9 +281,9 @@ These are active when no GLSL shader handles the scaling step (unusual resolutio
 | `save-position-on-quit=yes` | Enabled | Resume from last position |
 | `save-watch-history=yes` | Enabled | Track watch history |
 | `autocreate-playlist=same` | Same directory | Auto-add files from same directory |
-| `video-sync=audio` | Audio | Audio-driven sync — clean 5:1 cadence for 24fps on 120Hz |
-| `interpolation=no` | Disabled | Anime is intentionally 24fps — interpolation creates artifacts and loses aesthetic |
-| `swapchain-depth=4` | 4 | Extra presentation buffer headroom |
+| `video-sync=audio` | Audio | Audio-driven sync with a clean 5:1 cadence for 24fps on 120Hz |
+| `interpolation=no` | Disabled | Anime is intentionally 24fps. Interpolation creates artifacts and loses the aesthetic |
+| `swapchain-depth=4` | 4 | Extra presentation buffers |
 | `hr-seek=absolute` | Absolute | Precise seeking |
 | `reset-on-next-file=...` | Custom | Reset audio-delay, mute, pause, speed, sub-delay between files |
 
@@ -303,26 +303,26 @@ These are active when no GLSL shader handles the scaling step (unusual resolutio
 |--------|-------|-----|
 | `log-file=~~/mpv.log` | mpv.log | Log file location (overwritten each session) |
 
-### File Map
+### File map
 
 | File | Description |
 |------|-------------|
-| `mpv.conf` | Main configuration — video output, decoding, cache, subtitles |
-| `input.conf` | Keybindings — custom keys for shader toggle, deband, etc. |
-| `scripts/` | Lua scripts — OSC, thumbnails, SponsorBlock, track selection |
-| `shaders/` | GLSL shaders — upscaling, chroma, anti-ringing, sharpening |
-| `script-opts/` | Script configuration — per-script settings |
-| `fonts/` | Custom fonts — Fluent System Icons for OSC |
+| `mpv.conf` | Main configuration: video output, decoding, cache, subtitles |
+| `input.conf` | Keybindings: custom keys for shader toggle, deband, and more |
+| `scripts/` | Lua scripts: OSC, thumbnails, SponsorBlock, track selection |
+| `shaders/` | GLSL shaders: upscaling, chroma, anti-ringing, sharpening |
+| `script-opts/` | Script configuration: per-script settings |
+| `fonts/` | Custom fonts: Fluent System Icons for OSC |
 
 ## Keybindings
 
 | Key | Action | Why |
 |-----|--------|-----|
-| `Ctrl+g` | Cycle RAVU ↔ ArtCNN ↔ off | Switch upscaling strategy (see [Keybind Stacks](#keybind-stacks-toggle-manually)) |
-| `Ctrl+h` | Cycle SSimDownscaler ↔ off | Toggle downscaling for 4K on 1080p (see [Keybind Stacks](#keybind-stacks-toggle-manually)) |
+| `Ctrl+g` | Cycle RAVU stack, ArtCNN stack, and off | Switch upscaling strategy (see [Keybind stacks](#keybind-stacks-toggle-manually)) |
+| `Ctrl+h` | Cycle SSimDownscaler and off | Toggle downscaling for 4K on 1080p (see [Keybind stacks](#keybind-stacks-toggle-manually)) |
 | `n` | Toggle deband | Off by default, toggle when banding is visible |
 | `k` | Toggle sub-ass-override | Switch between styled and plain subtitles |
-| `>` / `<` | Next/previous episode (mpv default) | Quick navigation during binge sessions |
+| `>` / `<` | Next or previous episode (mpv default) | Quick navigation during binge sessions |
 
 ## Installation
 
@@ -339,18 +339,18 @@ cp -r script-opts/ ~/.config/mpv/
 cp -r fonts/ ~/.config/mpv/
 ```
 
-**Note:** If you want to use `jellyfin.lua` (disabled by default — Jellyfin MPV Play handles this via IPC), create `script-opts/jellyfin.conf` with your server details. See `script-opts/jellyfin.conf.example` for the format.
+**Note:** If you want to use `jellyfin.lua` (disabled by default, since Jellyfin MPV Play handles this via IPC), create `script-opts/jellyfin.conf` with your server details. See `script-opts/jellyfin.conf.example` for the format.
 
-## Related Projects
+## Related projects
 
-- [Jellyfin MPV Play](https://github.com/MrGameVlogger/jellyfin-mpv-play) — Jellyfin client that launches mpv from the web UI
-- [thumbfast-jellyfin](https://github.com/MrGameVlogger/thumbfast-jellyfin) — Modified thumbfast with Jellyfin Trickplay support
+- [Jellyfin MPV Play](https://github.com/MrGameVlogger/jellyfin-mpv-play), a Jellyfin client that launches mpv from the web UI
+- [thumbfast-jellyfin](https://github.com/MrGameVlogger/thumbfast-jellyfin), modified thumbfast with Jellyfin Trickplay support
 
-## Credits & Inspiration
+## Credits and inspiration
 
-- [classicjazz/mpv-config](https://github.com/classicjazz/mpv-config) — macOS mpv configuration guide with shader recommendations. Detailed write-up: [Configuring MPV for Best Video Quality](https://freetime.mikeconnelly.com/archives/5371). Shader choices, conditional profiles, and Vulkan/MoltenVK setup are based on this guide.
-- [SoM-MPV-Config](https://github.com/JySzE/SoM-MPV-Config) — Anime-focused mpv config. Colorspace profiles and SDH filtering are based on this config.
+- [classicjazz/mpv-config](https://github.com/classicjazz/mpv-config), a macOS mpv configuration guide with shader recommendations. Detailed write-up: [Configuring MPV for Best Video Quality](https://freetime.mikeconnelly.com/archives/5371). Shader choices, conditional profiles, and Vulkan/MoltenVK setup are based on this guide.
+- [SoM-MPV-Config](https://github.com/JySzE/SoM-MPV-Config), an anime-focused mpv config. Colorspace profiles and SDH filtering are based on this config.
 
 ## License
 
-Configuration files are MIT licensed (see [LICENSE](LICENSE)). Bundled scripts and shaders are subject to their respective licenses (MPL-2.0, GPL-3.0, MIT, Apache-2.0 — see individual files).
+Configuration files are MIT licensed (see [LICENSE](LICENSE)). Bundled scripts and shaders are subject to their respective licenses (MPL-2.0, GPL-3.0, MIT, Apache-2.0, see individual files).
