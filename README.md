@@ -31,7 +31,7 @@ I watch everything through Jellyfin, so the setup is optimized for streaming:
 
 - **[Jellyfin MPV Play](https://github.com/MrGameVlogger/jellyfin-mpv-play)** launches mpv from the Jellyfin web UI — no need to copy URLs or use a browser
 - **[thumbfast-jellyfin](https://github.com/MrGameVlogger/thumbfast-jellyfin)** fetches pre-generated Trickplay thumbnails from the server instead of decoding video locally — instant seekbar previews with zero CPU overhead
-- **[jf-mpv-osc](https://github.com/iwalton3/jf-mpv-osc)** provides a Jellyfin-styled OSC with skip intro button, action sheets for subtitle/audio selection, and queue navigation
+- **[jf-mpv-osc](https://github.com/MrGameVlogger/jf-mpv-osc)** (fork of [iwalton3/jf-mpv-osc](https://github.com/iwalton3/jf-mpv-osc)) provides a Jellyfin-styled OSC with skip intro button, action sheets for subtitle/audio selection, and queue navigation
 - **Large cache** (`demuxer-max-bytes=8192M`) buffers aggressively for smooth streaming over network
 
 ### 3. High-Quality Rendering
@@ -58,7 +58,7 @@ The shaders are applied via conditional profiles, so 4K content doesn't get unne
 
 - **Direct streaming** — play from Jellyfin server via [Jellyfin MPV Play](https://github.com/MrGameVlogger/jellyfin-mpv-play), no browser needed
 - **Trickplay thumbnails** — instant seekbar previews from Jellyfin's pre-generated tiles via [thumbfast-jellyfin](https://github.com/MrGameVlogger/thumbfast-jellyfin)
-- **Custom OSC** — Jellyfin-styled interface with Material icons via [jf-mpv-osc](https://github.com/iwalton3/jf-mpv-osc)
+- **Custom OSC** — Jellyfin-styled interface with Material icons via [jf-mpv-osc](https://github.com/MrGameVlogger/jf-mpv-osc)
 
 ### Playback
 
@@ -78,12 +78,12 @@ The shaders are applied via conditional profiles, so 4K content doesn't get unne
 
 ### Disabled & Backup Scripts
 
-| File | Status | Reason | Source |
-|------|--------|--------|--------|
 All parked outside `scripts/` — mpv attempts to load every file there, so anything that is not a script logs a load error on every startup. Re-enabling = move the file back into `scripts/` and drop the `.disabled` suffix.
 
+| File | Status | Reason | Source |
+|------|--------|--------|--------|
 | `backup/jellyfin.lua.disabled` | Disabled | Was the original Jellyfin client script. Now redundant with [Jellyfin MPV Play](https://github.com/MrGameVlogger/jellyfin-mpv-play) which handles everything via IPC. Kept for standalone use without the macOS app. | [EmperorPenguin18/mpv-jellyfin](https://github.com/EmperorPenguin18/mpv-jellyfin) |
-| `backup/autocrop.lua.disabled` | Disabled | Stock mpv script for automatic black bar detection. Didn't like the behavior — kept trying to crop when I didn't want it to. | mpv built-in |
+| `backup/autocrop.lua.disabled` | Disabled | Stock mpv script for automatic black bar detection. Kept trying to crop when I didn't want it to, and caused `p010`/`yuv420p10` pixel format toggling with `hwdec=auto-copy`. | mpv built-in |
 | `backup/modernx.lua.disabled` | Disabled | Was the previous OSC. Replaced by `trickplay-jf-osc.lua` which has native Jellyfin integration. Kept in case you want to switch back to the modern mpv style. | [zydezu/ModernX](https://github.com/zydezu/ModernX) |
 | `backup/thumbfast-upstream.lua` | Backup | Original upstream [thumbfast](https://github.com/po5/thumbfast) before [Jellyfin Trickplay modifications](https://github.com/MrGameVlogger/thumbfast-jellyfin). Used to sync updates from upstream. | [po5/thumbfast](https://github.com/po5/thumbfast) |
 
@@ -98,7 +98,7 @@ These shaders are applied automatically based on content resolution via conditio
 | **4K** | height >= 2160 | CfL + SSimSuperRes | No upscaling needed, just chroma improvement and anti-ringing |
 | **1080p-1440p** | 1080 <= height < 2160 | RAVU + CfL + SSimSuperRes | Full upscaling pipeline for most anime BDRips |
 | **Sub-1080p** | height < 1080 | RAVU + CfL + SSimSuperRes | Same pipeline, RAVU handles larger upscale factor |
-| **HDR** | PQ/HLG gamma | bt.2446a tone mapping (fallback), target-peak=1600 (XDR display), HDR passthrough |
+| **HDR** | PQ/HLG gamma | — | bt.2446a tone mapping (fallback), target-peak=1600 (XDR display), HDR passthrough |
 
 ### Keybind Stacks (Toggle Manually)
 
@@ -106,8 +106,8 @@ These shaders are not in auto-profiles but can be toggled via keybinds.
 
 | Keybind | Cycles Between | What's In Each Stack | Purpose |
 |---------|----------------|---------------------|---------|
-| `Ctrl+g` | RAVU stack ↔ ArtCNN stack ↔ off | **RAVU stack:** `ravu-zoom-ar-r3.hook` + `CfL_Prediction.glsl` + `SSimSuperRes.glsl` + `adaptive-sharpen.glsl`<br>**ArtCNN stack:** `ArtCNN_C4F16.glsl` + `CfL_Prediction.glsl` + `SSimSuperRes.glsl` + `adaptive-sharpen.glsl` | Switch upscaling strategy — RAVU for arbitrary ratios (720p→4K), ArtCNN for 2x (1080p→4K). Third press turns off all manual shaders. |
-| `Ctrl+h` | SSimDownscaler stack ↔ off | **SSimDownscaler stack:** `SSimDownscaler.glsl` + `CfL_Prediction.glsl` + `SSimSuperRes.glsl` + `adaptive-sharpen.glsl` | Toggle downscaling for 4K content on 1080p display. Hit again to turn off and return to auto-profiles. |
+| `Ctrl+g` | RAVU stack ↔ ArtCNN stack ↔ off | **RAVU stack:** `ravu-zoom-ar-r3.hook` + `CfL_Prediction.glsl` + `SSimSuperRes.glsl` + `adaptive-sharpen.glsl`<br>**ArtCNN stack:** `ArtCNN_C4F16.glsl` + `CfL_Prediction.glsl` + `SSimSuperRes.glsl` + `adaptive-sharpen.glsl` | Switch upscaling strategy — RAVU for arbitrary ratios (720p→4K), ArtCNN for 2x (1080p→4K). Third press turns off all manual shaders (auto-profile shaders stay cleared until the next file loads). |
+| `Ctrl+h` | SSimDownscaler stack ↔ off | **SSimDownscaler stack:** `SSimDownscaler.glsl` + `CfL_Prediction.glsl` + `SSimSuperRes.glsl` + `adaptive-sharpen.glsl` | Toggle downscaling for 4K content on 1080p display. Hit again to turn off all manual shaders (auto-profile shaders stay cleared until the next file loads). |
 
 **How it works:**
 - Auto-profiles apply shaders automatically based on content resolution
@@ -303,11 +303,13 @@ These are active when no GLSL shader handles the scaling step (unusual resolutio
 |--------|-------|-----|
 | `log-file=~~/mpv.log` | mpv.log | Log file location (overwritten each session) |
 
+### File Map
+
 | File | Description |
 |------|-------------|
 | `mpv.conf` | Main configuration — video output, decoding, cache, subtitles |
 | `input.conf` | Keybindings — custom keys for shader toggle, deband, etc. |
-| `scripts/` | Lua scripts — OSC, thumbnails, Jellyfin, SponsorBlock |
+| `scripts/` | Lua scripts — OSC, thumbnails, SponsorBlock, track selection |
 | `shaders/` | GLSL shaders — upscaling, chroma, anti-ringing, sharpening |
 | `script-opts/` | Script configuration — per-script settings |
 | `fonts/` | Custom fonts — Fluent System Icons for OSC |
@@ -320,7 +322,7 @@ These are active when no GLSL shader handles the scaling step (unusual resolutio
 | `Ctrl+h` | Cycle SSimDownscaler ↔ off | Toggle downscaling for 4K on 1080p (see [Keybind Stacks](#keybind-stacks-toggle-manually)) |
 | `n` | Toggle deband | Off by default, toggle when banding is visible |
 | `k` | Toggle sub-ass-override | Switch between styled and plain subtitles |
-| `>` / `<` | Next/previous episode | Quick navigation during binge sessions |
+| `>` / `<` | Next/previous episode (mpv default) | Quick navigation during binge sessions |
 
 ## Installation
 
@@ -330,6 +332,7 @@ git clone https://github.com/MrGameVlogger/mpv-config.git ~/.config/mpv
 
 # Or copy individual files
 cp mpv.conf ~/.config/mpv/
+cp input.conf ~/.config/mpv/
 cp -r scripts/ ~/.config/mpv/
 cp -r shaders/ ~/.config/mpv/
 cp -r script-opts/ ~/.config/mpv/
@@ -350,4 +353,4 @@ cp -r fonts/ ~/.config/mpv/
 
 ## License
 
-Configuration files are personal use. Scripts and shaders are subject to their respective licenses (MPL-2.0, GPL-3.0, MIT, Apache-2.0 — see individual files).
+Configuration files are MIT licensed (see [LICENSE](LICENSE)). Bundled scripts and shaders are subject to their respective licenses (MPL-2.0, GPL-3.0, MIT, Apache-2.0 — see individual files).
