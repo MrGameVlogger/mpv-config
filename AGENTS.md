@@ -220,7 +220,7 @@ parts (Material icon data Apache-2.0, mpv `osc.lua` base terms, see its repo
   common paths, Homebrew first) for Trickplay.
 - Config: script-opts/thumbfast.conf
 - Upstream backup: `backup/thumbfast-upstream.lua` (verified exact copy from GitHub; kept out of `scripts/` because mpv attempts to load every file there).
-- Synced from https://github.com/MrGameVlogger/thumbfast-jellyfin (v1.2.0),
+- Synced from https://github.com/MrGameVlogger/thumbfast-jellyfin (v1.2.1),
   kept byte-identical with its `thumbfast-jellyfin.lua`. (A one-time
   `--demuxer-readahead-secs=600` and `--demuxer-max-bytes=2048MiB` worker
   patch was dropped when the byte-identical sync began; the worker's demuxer

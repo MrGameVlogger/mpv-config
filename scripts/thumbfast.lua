@@ -1,7 +1,7 @@
 -- thumbfast-jellyfin.lua
 --
 -- Drop-in replacement for thumbfast.lua with Jellyfin Trickplay support.
--- Fetches pre-generated thumbnails from Jellyfin server instead of spawning
+-- Fetches pre-generated thumbnails from the Jellyfin server instead of spawning
 -- a subprocess for local thumbnail generation.
 --
 -- Based on thumbfast by po5: https://github.com/po5/thumbfast
@@ -23,8 +23,8 @@
 --   - On file load, detects Jellyfin streams by URL pattern
 --   - Fetches Trickplay tile images from the Jellyfin API
 --   - Converts tiles to BGRA format using ffmpeg
---   - Displays thumbnails instantly from server-side data
---   - Falls back to normal thumbfast for non-Jellyfin content
+--   - Displays thumbnails through mpv's overlay API
+--   - Falls back to the normal thumbfast subprocess for non-Jellyfin content
 --
 -- License: MPL-2.0 (same as upstream thumbfast)
 
